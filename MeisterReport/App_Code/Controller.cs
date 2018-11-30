@@ -237,7 +237,7 @@ public class Controller
     {
         string uid = string.Empty;
         string psw = string.Empty;
-        uid = ConfigurationManager.AppSettings["UserId"];
+        uid = ConfigurationManager.AppSettings["UserName"];
         psw = ConfigurationManager.AppSettings["Password"];
         var uap = $"{uid}:{psw}";
         var byteArray = Encoding.ASCII.GetBytes(uap);

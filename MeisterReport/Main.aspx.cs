@@ -56,6 +56,9 @@ public partial class Main : System.Web.UI.Page
     private const string SavedNick = "SavedNick";
     private const string VarNameSaved = "VarNameSaved";
     private const string SavedAgendaForUpdate = "SavedAgendaForUpdate";
+    private const string IsDemo = "IsDemo";
+    private const string UserName = "UserName";
+    private const string Password = "Password";
     public List<BindReportsByUser> reps = null;
     private List<ParmBind> parmBind = null;
     public List<VarientBind> variantBodies { get; set; }
@@ -63,7 +66,8 @@ public partial class Main : System.Web.UI.Page
     {
         model = new Model();
         SetMessage(String.Empty);
-        if (Boolean.TryParse(ConfigurationManager.AppSettings["IsDemo"], out DemoMode))
+        SetCreds();
+        if (Boolean.TryParse(ConfigurationManager.AppSettings[IsDemo], out DemoMode))
         {
             DemoMode = true;
             TextBox1.Visible = false;
@@ -132,6 +136,12 @@ public partial class Main : System.Web.UI.Page
                 }
             }
         }
+    }
+
+    private void SetCreds()
+    {
+        Session[UserName] = ConfigurationManager.AppSettings[UserName];
+        Session[Password] = ConfigurationManager.AppSettings[Password];
     }
 
     private List<string> AddOptions( bool high)
@@ -336,7 +346,7 @@ public partial class Main : System.Web.UI.Page
                 }
             }
         s.Report = GridView1.Rows[GridView1.SelectedIndex].Cells[2].Text;
-        s.Username = "DEMOUSER";
+        s.Username = GetUserName();
         if (!saved)
         {
             model.ScheduleReport(s);
@@ -344,6 +354,11 @@ public partial class Main : System.Web.UI.Page
             TextBox3.Text = model.schedulerResponses.FirstOrDefault().Message;
         }
         return s;
+    }
+
+    private string GetUserName()
+    {
+        return Session[UserName] as string;
     }
 
     public static void ShowAlert(string message)
@@ -484,7 +499,7 @@ public partial class Main : System.Web.UI.Page
         {
             Retrieval.Visible = true;
             Button7.Enabled = false;
-            model.ReportRetriever("DEMOUSER");
+            model.ReportRetriever(GetUserName());
             IEnumerable<ReportData> list = model.ReportData as IEnumerable<ReportData>;
             reps = new List<BindReportsByUser>();
             if (list != null)
@@ -841,6 +856,7 @@ public partial class Main : System.Web.UI.Page
         else
             Button8.Text = "Create Agenda Item";
         int rb = RadioButtonList1.SelectedIndex;
+        string nm = UppercaseFirst(GetUserName());
         if (rb != 0)
         {
             if (rb == 2)
@@ -848,20 +864,30 @@ public partial class Main : System.Web.UI.Page
                 DOWs.Visible = true;
                 lbDOW.Text = "Schedule Day of the Week and Time Slot";
                 RadioButtonList2.Visible = true;
-                Button8.Enabled = false;
-                txtNickName.Text = (Session[ReportName] as string) + " for DemoUser " + RadioButtonList1.Text;
+                Button8.Enabled = false;               
+                txtNickName.Text = (Session[ReportName] as string) + nm + RadioButtonList1.Text;
             }
             else
             {
                 DOWs.Visible = true;
                 lbDOW.Text = "Schedule Time Slot";
                 RadioButtonList2.Visible = false;
-                txtNickName.Text = (Session[ReportName] as string) + " for DemoUser " + RadioButtonList1.SelectedItem.Text;
+                txtNickName.Text = (Session[ReportName] as string) + nm + RadioButtonList1.SelectedItem.Text;
             }
             Session[SavedNick] = txtNickName.Text;
         }
     }
 
+    private string UppercaseFirst(string s)
+    {
+        // Check for empty string.
+        if (string.IsNullOrEmpty(s))
+        {
+            return string.Empty;
+        }
+        // Return char and concat substring.
+        return char.ToUpper(s[0]) + s.Substring(1);
+    }
     private bool DoingAgenda()
     {
         return (bool)Session[ShowAgenda];
@@ -870,7 +896,8 @@ public partial class Main : System.Web.UI.Page
     protected void RadioButtonList2_SelectedIndexChanged(object sender, EventArgs e)
     {
         int rb = RadioButtonList2.SelectedIndex;
-        txtNickName.Text = (Session[ReportName] as string) + " for DemoUser " + RadioButtonList1.SelectedItem.Text + " on " + RadioButtonList2.SelectedItem.Text;
+        string nm = UppercaseFirst(GetUserName());
+        txtNickName.Text = (Session[ReportName] as string) + nm + RadioButtonList1.SelectedItem.Text + " on " + RadioButtonList2.SelectedItem.Text;
         Session[SavedNick] = txtNickName.Text;
     }
 
@@ -912,8 +939,8 @@ public partial class Main : System.Web.UI.Page
             GridView3.Caption = "Agenda for User";
             Resource<User, AgendaQuery> query = new Resource<User, AgendaQuery>(new Uri(ConfigurationManager.AppSettings["URL"]));
             User u = new User();
-            u.Userid = "DEMOUSER";
-            query.Authenticate("DEMOUSER", Encoding.ASCII.GetBytes("DemoUser."));
+            u.Userid = GetUserName();
+            query.Authenticate(GetUserName(), Encoding.ASCII.GetBytes(GetPassword()));
             List<AgendaQuery> agenda = query.Execute("Meister.SDK.Reports.Agenda", u, false);
             List<AgendaBind> reps = new List<AgendaBind>();
             if (agenda != null)
@@ -941,6 +968,11 @@ public partial class Main : System.Web.UI.Page
         }
     }
 
+    private char[] GetPassword()
+    {
+        return ((string)(Session[Password])).ToCharArray();
+    }
+
     /// <summary>
     /// save agenda
     /// </summary>
@@ -961,7 +993,7 @@ public partial class Main : System.Web.UI.Page
                 a.SLOT = TextBox7.Text;
                 // call to update the agenda ... not the report within!
                 Resource<Agenda, AgendaResult> query = new Resource<Agenda, AgendaResult>(new Uri(ConfigurationManager.AppSettings["URL"]));
-                query.Authenticate("DEMOUSER", Encoding.ASCII.GetBytes("DemoUser."));
+                query.Authenticate(GetUserName(), Encoding.ASCII.GetBytes(GetPassword()));
                 List<AgendaResult> agenda = query.Execute("Meister.SDK.Report.Agenda.Add", a, false);
                 SetMessage("Agenda " + a.NICKNAME + " changed successfully");
             }
@@ -989,7 +1021,7 @@ public partial class Main : System.Web.UI.Page
             foreach (var item in s.Parameters)
                 a.Parameters.Add(item);
             Resource<Agenda, AgendaResult> query = new Resource<Agenda, AgendaResult>(new Uri(ConfigurationManager.AppSettings["URL"]));
-            query.Authenticate("DEMOUSER", Encoding.ASCII.GetBytes("DemoUser."));
+            query.Authenticate(GetUserName(), Encoding.ASCII.GetBytes(GetPassword()));
             List<AgendaResult> agenda = query.Execute("Meister.SDK.Report.Agenda.Add", a, false);
             SetMessage("Agenda " + a.NICKNAME + " created successfully");
         }
@@ -1074,7 +1106,7 @@ public partial class Main : System.Web.UI.Page
                 CheckBox2.Visible = false;
                 Button9.Visible = false;
                 Resource<Agenda, AgendaResult> query = new Resource<Agenda, AgendaResult>(new Uri(ConfigurationManager.AppSettings["URL"]));
-                query.Authenticate("DEMOUSER", Encoding.ASCII.GetBytes("DemoUser."));
+                query.Authenticate(GetUserName(), Encoding.ASCII.GetBytes(GetPassword()));
                 List<AgendaResult> agenda = query.Execute("Meister.SDK.Report.Agenda.Add", a, false);
                 SetMessage("Agenda deleted");
                 Retrieval.Visible = false;
