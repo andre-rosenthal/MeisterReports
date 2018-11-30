@@ -866,7 +866,7 @@ public partial class Main : System.Web.UI.Page
             Button8.Text = "Save Agenda Item";
         else
             Button8.Text = "Create Agenda Item";
-        string nm = ToCamelCase(GetUserName());
+        string nm = " for " + ToCamelCase(GetUserName()) + " ";
         int rb = RadioButtonList1.SelectedIndex;
         if (rb != 0)
         {
@@ -897,7 +897,7 @@ public partial class Main : System.Web.UI.Page
     protected void RadioButtonList2_SelectedIndexChanged(object sender, EventArgs e)
     {
         int rb = RadioButtonList2.SelectedIndex;
-        string nm = ToCamelCase(GetUserName());
+        string nm = " for " + ToCamelCase(GetUserName()) + " ";
         txtNickName.Text = (Session[ReportName] as string) + nm + RadioButtonList1.SelectedItem.Text + " on " + RadioButtonList2.SelectedItem.Text;
         Session[SavedNick] = txtNickName.Text;
     }
@@ -951,12 +951,12 @@ public partial class Main : System.Web.UI.Page
                     {
                         var ab = new AgendaBind();
                         ab.NickName = l1.NICKNAME;
-                        ab.Schedule_Type = l1.AGENDA_TYPE;
+                        ab.Schedule_Type = GetAgendaType(l1.AGENDA_TYPE);
                         int i = 0;
                         Int32.TryParse(l1.SLOT, out i);
                         ab.TimeSlot = i;
                         ab.UUID = l1.PKY;
-                        ab.WeekDay = l1.DOW;
+                        ab.WeekDay = GetDOW(l1.DOW);
                         ab.UserName = l1.USERID;
                         reps.Add(ab);
                     }
@@ -967,6 +967,26 @@ public partial class Main : System.Web.UI.Page
             Session[ShowAgenda] = true;
             Button7.Text = "Hide Agenda";
         }
+    }
+
+    private string GetDOW(string dw)
+    {
+        foreach (ListControl item in RadioButtonList1.Items)
+        {
+            if (item.SelectedValue == dw)
+                return item.Text;
+        }
+        return dw;
+    }
+
+    private string GetAgendaType(string at)
+    {
+        foreach (ListControl item in RadioButtonList2.Items)
+        {
+            if (item.SelectedValue == at)
+                return item.Text;
+        }
+        return at;
     }
 
     /// <summary>
