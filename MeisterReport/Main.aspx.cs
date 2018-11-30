@@ -56,17 +56,18 @@ public partial class Main : System.Web.UI.Page
     private const string SavedNick = "SavedNick";
     private const string VarNameSaved = "VarNameSaved";
     private const string SavedAgendaForUpdate = "SavedAgendaForUpdate";
-    private const string IsDemo = "IsDemo";
-    private const string UserName = "UserName";
     private const string Password = "Password";
+    private const string UserName = "UserName";
+    private const string IsDemo = "IsDemo";
     public List<BindReportsByUser> reps = null;
     private List<ParmBind> parmBind = null;
     public List<VarientBind> variantBodies { get; set; }
+
     protected void Page_Load(object sender, EventArgs e)
     {
         model = new Model();
         SetMessage(String.Empty);
-        SetCreds();
+        SetInitial();
         if (Boolean.TryParse(ConfigurationManager.AppSettings[IsDemo], out DemoMode))
         {
             DemoMode = true;
@@ -138,13 +139,23 @@ public partial class Main : System.Web.UI.Page
         }
     }
 
-    private void SetCreds()
+    private void SetInitial()
     {
         Session[UserName] = ConfigurationManager.AppSettings[UserName];
         Session[Password] = ConfigurationManager.AppSettings[Password];
     }
 
-    private List<string> AddOptions( bool high)
+    private string GetUserName()
+    {
+        return Session[UserName] as string;
+    }
+
+    private char[] GetPassword()
+    {
+        return ((string)Session[Password]).ToCharArray();
+    }
+
+    private List<string> AddOptions(bool high)
     {
         // if HIGH is false
         // EQ, NE, GT, LE, LT,CP, and NP
@@ -164,7 +175,7 @@ public partial class Main : System.Web.UI.Page
             l.Add("CP");
             l.Add("NP");
         }
-        return l; 
+        return l;
     }
 
     public List<string> GetOptions(bool high)
@@ -222,9 +233,14 @@ public partial class Main : System.Web.UI.Page
 
     }
 
+    private string ToCamelCase(string s)
+    {
+        return char.ToUpper(s.First()) + s.Substring(1).ToLower();
+    }
+
     protected void GridView1_SelectedIndexChanged(object sender, EventArgs e)
     {
-        
+
         foreach (GridViewRow row in GridView1.Rows)
         {
             if (row.RowIndex == GridView1.SelectedIndex)
@@ -336,7 +352,7 @@ public partial class Main : System.Web.UI.Page
                     }
                     else
                         if (GetOptions(false).Contains(ps.Option))
-                            ps.High = ps.Low;
+                        ps.High = ps.Low;
                     else
                     {
                         ShowAlert(DoMessage(ps.Option, ValidOptionsNH, true));
@@ -356,20 +372,15 @@ public partial class Main : System.Web.UI.Page
         return s;
     }
 
-    private string GetUserName()
-    {
-        return Session[UserName] as string;
-    }
-
     public static void ShowAlert(string message)
     {
         string cleanMessage = message.Replace("'", "\'");
-       
+
         Page page = HttpContext.Current.CurrentHandler as Page;
         string script = string.Format("alert('{0}');", cleanMessage);
         if (page != null && !page.ClientScript.IsClientScriptBlockRegistered("alert"))
         {
-            ScriptManager.RegisterClientScriptBlock(page,page.GetType(), "alert", script, true /* addScriptTags */);
+            ScriptManager.RegisterClientScriptBlock(page, page.GetType(), "alert", script, true /* addScriptTags */);
         }
     }
     private string DoMessage(string msg, List<string> l, bool option = false)
@@ -420,7 +431,7 @@ public partial class Main : System.Web.UI.Page
         T t = (T)Session[ses];
         gv.DataSource = t;
         gv.DataBind();
-        
+
     }
     private void BindData<T>(GridView gv, T t, string ses)
     {
@@ -483,7 +494,7 @@ public partial class Main : System.Web.UI.Page
     {
         GridView2.SelectedIndex = -1;
         GridView2.EditIndex = -1;
-        RebindData<List<ParmBind>>(GridView2,SesParmList);
+        RebindData<List<ParmBind>>(GridView2, SesParmList);
     }
 
     protected void Button3_Click(object sender, EventArgs e)
@@ -517,7 +528,7 @@ public partial class Main : System.Web.UI.Page
                         reps.Add(br);
                     }
                 GridView3.Caption = "Reports found for user";
-                BindData<List<BindReportsByUser>>(GridView3, reps, SesReports);               
+                BindData<List<BindReportsByUser>>(GridView3, reps, SesReports);
             }
             ReportsShown = true;
             Session[SesShowRep] = true;
@@ -569,7 +580,7 @@ public partial class Main : System.Web.UI.Page
     }
 
     protected void GridView3_SelectedIndexChanged(object sender, EventArgs e)
-    {        
+    {
         if (DoingAgenda())
         {
             BeforeB2.Visible = true;
@@ -645,7 +656,7 @@ public partial class Main : System.Web.UI.Page
     }
 
     public void DownloadZipFiles(string fileName, Dictionary<string, string> files)
-    { 
+    {
         string zipname = Path.Combine(Path.GetTempPath(), fileName);
         using (Ionic.Zip.ZipFile zipFile = new Ionic.Zip.ZipFile())
         {
@@ -662,7 +673,7 @@ public partial class Main : System.Web.UI.Page
         Response.End();
     }
 
-    public void WriteTempFile(string filename, string text, Dictionary<string,string> files)
+    public void WriteTempFile(string filename, string text, Dictionary<string, string> files)
     {
         string filePath = Path.Combine(Path.GetTempPath(), filename);
         string[] sa = { text };
@@ -675,7 +686,7 @@ public partial class Main : System.Web.UI.Page
         foreach (GridViewRow row in GridView4.Rows)
         {
             if (row.RowIndex == GridView4.SelectedIndex)
-            {         
+            {
                 row.BackColor = ColorTranslator.FromHtml("#A1DCF2");
                 row.ToolTip = "Variant Selected";
                 model.VariantContents(GridView1.Rows[GridView1.SelectedIndex].Cells[2].Text, GridView4.Rows[row.RowIndex].Cells[1].Text);
@@ -855,8 +866,8 @@ public partial class Main : System.Web.UI.Page
             Button8.Text = "Save Agenda Item";
         else
             Button8.Text = "Create Agenda Item";
+        string nm = ToCamelCase(GetUserName());
         int rb = RadioButtonList1.SelectedIndex;
-        string nm = UppercaseFirst(GetUserName());
         if (rb != 0)
         {
             if (rb == 2)
@@ -864,7 +875,7 @@ public partial class Main : System.Web.UI.Page
                 DOWs.Visible = true;
                 lbDOW.Text = "Schedule Day of the Week and Time Slot";
                 RadioButtonList2.Visible = true;
-                Button8.Enabled = false;               
+                Button8.Enabled = false;
                 txtNickName.Text = (Session[ReportName] as string) + nm + RadioButtonList1.Text;
             }
             else
@@ -878,16 +889,6 @@ public partial class Main : System.Web.UI.Page
         }
     }
 
-    private string UppercaseFirst(string s)
-    {
-        // Check for empty string.
-        if (string.IsNullOrEmpty(s))
-        {
-            return string.Empty;
-        }
-        // Return char and concat substring.
-        return char.ToUpper(s[0]) + s.Substring(1);
-    }
     private bool DoingAgenda()
     {
         return (bool)Session[ShowAgenda];
@@ -896,7 +897,7 @@ public partial class Main : System.Web.UI.Page
     protected void RadioButtonList2_SelectedIndexChanged(object sender, EventArgs e)
     {
         int rb = RadioButtonList2.SelectedIndex;
-        string nm = UppercaseFirst(GetUserName());
+        string nm = ToCamelCase(GetUserName());
         txtNickName.Text = (Session[ReportName] as string) + nm + RadioButtonList1.SelectedItem.Text + " on " + RadioButtonList2.SelectedItem.Text;
         Session[SavedNick] = txtNickName.Text;
     }
@@ -968,11 +969,6 @@ public partial class Main : System.Web.UI.Page
         }
     }
 
-    private char[] GetPassword()
-    {
-        return ((string)(Session[Password])).ToCharArray();
-    }
-
     /// <summary>
     /// save agenda
     /// </summary>
@@ -1039,7 +1035,7 @@ public partial class Main : System.Web.UI.Page
     /// <param name="e"></param>
     protected void GridView3_RowDeleting(object sender, GridViewDeleteEventArgs e)
     {
-        
+
     }
 
     protected bool DoWarning(string rep)
@@ -1090,7 +1086,7 @@ public partial class Main : System.Web.UI.Page
                     Parameter p = new Parameter();
                     a.Parameters.Add(p);
                     Session[SavedAgendaForUpdate] = a;
-                    CheckBox2.Visible = true;                    
+                    CheckBox2.Visible = true;
                 }
             }
         }
@@ -1121,5 +1117,3 @@ public partial class Main : System.Web.UI.Page
         TextBox3.Text = v;
     }
 }
-
-
