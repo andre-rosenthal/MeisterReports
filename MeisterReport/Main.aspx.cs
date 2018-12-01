@@ -18,6 +18,7 @@ using MeisterCore;
 using System.Net;
 using System.Linq.Expressions;
 using System.Web.Services;
+using System.Threading;
 
 public partial class Main : System.Web.UI.Page
 {
@@ -59,6 +60,8 @@ public partial class Main : System.Web.UI.Page
     private const string Password = "Password";
     private const string UserName = "UserName";
     private const string IsDemo = "IsDemo";
+    private const string ShowA = "Show Scheduler";
+    private const string HideA = "Hide Scheduler";
     public List<BindReportsByUser> reps = null;
     private List<ParmBind> parmBind = null;
     public List<VarientBind> variantBodies { get; set; }
@@ -68,18 +71,6 @@ public partial class Main : System.Web.UI.Page
         model = new Model();
         SetMessage(String.Empty);
         SetInitial();
-        if (Boolean.TryParse(ConfigurationManager.AppSettings[IsDemo], out DemoMode))
-        {
-            DemoMode = true;
-            TextBox1.Visible = false;
-            ddpDemo.Visible = true;
-            TextBox1.Text = ddpDemo.SelectedValue;
-        }
-        else
-        {
-            TextBox1.Visible = true;
-            ddpDemo.Visible = false;
-        }
         AvailableReports = new List<string>();
         AddRepors(AvailableReports);
         ValidOptionsNH = AddOptions(false);
@@ -92,21 +83,11 @@ public partial class Main : System.Web.UI.Page
         Content = "," + c.AddQuotes("CONTENT") + ":";
         if (!this.IsPostBack)
         {
+            SetMode("*");
+            SetDemo();           
             Session[ParmsAltered] = new List<string>();
             MyVisibilities = new Visibilities();
             MyVisibilities.SetOperations(Visibilities.Operations.gurnist);
-            ReportsShown = false;
-            LookupShown = false;
-            showAgenda = false;
-            Session[ShowAgenda] = false;
-            SearchSAP.Visible = false;
-            Retrieval.Visible = false;
-            AfterSeach.Visible = false;
-            BeforeSearch.Visible = false;
-            VariantSave.Visible = false;
-            AfterB2.Visible = false;
-            BeforeB2.Visible = false;
-            DOWs.Visible = false;
         }
         else
         {
@@ -137,6 +118,19 @@ public partial class Main : System.Web.UI.Page
                 }
             }
         }
+    }
+
+    private void SetDemo()
+    {
+        if (Boolean.TryParse(ConfigurationManager.AppSettings[IsDemo], out DemoMode))
+            if (DemoMode)
+            {
+                DemoMode = true;
+                ddpDemo.Visible = true;
+                TextBox1.Text = ddpDemo.SelectedValue;
+            }
+            else
+                TextBox1.Visible = true;
     }
 
     private void SetInitial()
@@ -196,7 +190,6 @@ public partial class Main : System.Web.UI.Page
 
     protected void Button1_Click(object sender, EventArgs e)
     {
-        // hide everything else ... cleanup
         Cleanup();
         if (TextBox1.Text != string.Empty)
         {
@@ -216,14 +209,14 @@ public partial class Main : System.Web.UI.Page
                     }
                 }
             BindData<List<BindResults>>(GridView1, enums, SesMatches);
-            BeforeSearch.Visible = true;
+            Grid1.Visible = true;
         }
     }
 
     private void Cleanup()
     {
-        AfterSeach.Visible = false;
-        ShowParms.Visible = false;
+        Grid4.Visible = false;
+        Grid2.Visible = false;
         VariantSave.Visible = false;
         AfterB2.Visible = false;
     }
@@ -240,13 +233,13 @@ public partial class Main : System.Web.UI.Page
 
     protected void GridView1_SelectedIndexChanged(object sender, EventArgs e)
     {
-
         foreach (GridViewRow row in GridView1.Rows)
         {
             if (row.RowIndex == GridView1.SelectedIndex)
             {
                 row.BackColor = ColorTranslator.FromHtml("#A1DCF2");
                 row.ToolTip = "Program Selected";
+                UpdateProgress1.Visible = true;
                 Session[ReportName] = GridView1.Rows[row.RowIndex].Cells[2].Text;
                 SetMessage("Reading Report and Variants ....");
                 model.Parameters(Session[ReportName] as string);
@@ -254,8 +247,10 @@ public partial class Main : System.Web.UI.Page
                 BuildParameterList(GridView2);
                 model.FindVariants(GridView1.Rows[row.RowIndex].Cells[2].Text);
                 BuildVariants(GridView4);
-                ShowParms.Visible = true;
+                Grid2.Visible = true;
                 BeforeB2.Visible = false;
+                SearchSAP.Visible = true;
+                UpdateProgress1.Visible = false;
                 SetMessage("Done reading Report and Variants ....");
             }
             else
@@ -279,7 +274,7 @@ public partial class Main : System.Web.UI.Page
                 ls.Add(vb);
             }
         BindData<List<VarientBind>>(grv, ls, SesVariants);
-        AfterSeach.Visible = true;
+        Grid4.Visible = true;
     }
 
     private void BuildParameterList(GridView gridView)
@@ -325,7 +320,7 @@ public partial class Main : System.Web.UI.Page
                 ShowAlert(DoMessage(rep, AvailableReports));
         AfterB2.Visible = true;
         Scheduler s = new Scheduler();
-        if (RadioButton1.Checked == false)
+        if (RadioButtonList3.SelectedValue == "N" )
             s.ColumnsNamed = "X";
         else
             s.WithMetadata = "X";
@@ -504,11 +499,11 @@ public partial class Main : System.Web.UI.Page
             Button3.Text = Show;
             Session[SesShowRep] = false;
             Button7.Enabled = true;
-            Retrieval.Visible = false;
+            Grid3.Visible = false;
         }
         else
         {
-            Retrieval.Visible = true;
+            Grid3.Visible = true;
             Button7.Enabled = false;
             model.ReportRetriever(GetUserName());
             IEnumerable<ReportData> list = model.ReportData as IEnumerable<ReportData>;
@@ -520,11 +515,36 @@ public partial class Main : System.Web.UI.Page
                     {
                         var br = new BindReportsByUser();
                         br.UUID = l1.Pky;
-                        br.Date = l1.Date;
-                        br.Time = l1.Time;
+                        DateTime dt = FromStringDT(l1.Date, l1.Time);
+                        br.Date = String.Format("{0:yyyy/MM/dd}", dt);
+                        br.Time = String.Format("{0:HH:mm tt}", dt);
                         br.ReportName = l1.Report.Name;
                         br.Description = l1.Report.Description;
-                        br.Status = l1.Status;
+                        switch (l1.Status)
+                        {
+                            case "S":
+                                {
+                                    br.Status = "Scheduled";
+                                    break;
+                                }
+                            case "R":
+                                {
+                                    br.Status = "Running";
+                                    break;
+                                }
+                            case "F":
+                                {
+                                    br.Status = "Finished";
+                                    break;
+                                }
+                            case "A":
+                                {
+                                    br.Status = "Aborted";
+                                    break;
+                                }
+                            default:
+                                break;
+                        }                       
                         reps.Add(br);
                     }
                 GridView3.Caption = "Reports found for user";
@@ -536,14 +556,24 @@ public partial class Main : System.Web.UI.Page
         }
     }
 
+    private DateTime FromStringDT(string date, string time)
+    {
+        return new DateTime(Int32.Parse(date.Substring(0, 4)), Int32.Parse(date.Substring(4, 2)), Int32.Parse(date.Substring(6, 2)), Int32.Parse(time.Substring(0, 2)), Int32.Parse(time.Substring(2, 2)), Int32.Parse(time.Substring(4, 2)));
+    }
+
     protected void CheckBox1_CheckedChanged(object sender, EventArgs e)
     {
     }
 
     protected void Button4_Click(object sender, EventArgs e)
     {
-        Retrieval.Visible = false;
+        SetDemo();
+        Grid3.Visible = false;
+        Button3.Enabled = true;
+        Button4.Enabled = true;
         SearchSAP.Visible = true;
+        Button7.Text = ShowA;
+        Session[ShowAgenda] = false;
         Button3.Text = Show;
     }
 
@@ -587,14 +617,14 @@ public partial class Main : System.Web.UI.Page
             Button2.Visible = false;
             Button9.Visible = true;
             DOWs.Visible = true;
-            Button8.Text = "Save Agenda Item";
+            Button8.Text = "Save Item";
             foreach (GridViewRow row in GridView3.Rows)
             {
                 if (row.RowIndex == GridView3.SelectedIndex)
                 {
                     string uuid = GridView3.Rows[row.RowIndex].Cells[4].Text;
                     row.BackColor = ColorTranslator.FromHtml("#A1DCF2");
-                    row.ToolTip = "Retrieving Agenda";
+                    row.ToolTip = "Retrieving Schedule for user";
                     AgendaBind ab = FromAgenda(uuid);
                     if (ab != null)
                     {
@@ -618,24 +648,26 @@ public partial class Main : System.Web.UI.Page
             {
                 if (row.RowIndex == GridView3.SelectedIndex)
                 {
-                    string name = GridView3.Rows[row.RowIndex].Cells[3].Text + ".zip";
+                    string name = GridView3.Rows[row.RowIndex].Cells[4].Text;
+                    string zn = name + ".zip";
                     row.BackColor = ColorTranslator.FromHtml("#A1DCF2");
                     row.ToolTip = "Retrieving Report";
-                    model.ReportRetriever(GridView3.Rows[row.RowIndex].Cells[2].Text, true);
+                    Thread.Sleep(100);
+                    model.ReportRetriever(GridView3.Rows[row.RowIndex].Cells[3].Text, true);
                     var i = model.RawReport.IndexOf(EDM);
                     if (i != -1)
                     {
                         var j = model.RawReport.IndexOf(Content);
                         string edm = model.RawReport.Substring(i, j - 1) + "]}";
                         string cnt = "{" + model.RawReport.Substring(j + 1);
-                        WriteTempFile(GridView3.Rows[row.RowIndex].Cells[3].Text + "_EDM.json", edm, Files);
-                        WriteTempFile(GridView3.Rows[row.RowIndex].Cells[3].Text + "_Content.json", cnt, Files);
-                        DownloadZipFiles(name, Files);
+                        WriteTempFile(name + "_EDM.json", edm, Files);
+                        WriteTempFile(name + "_Content.json", cnt, Files);
+                        DownloadZipFiles(zn, Files);
                     }
                     else
                     {
-                        WriteTempFile(GridView3.Rows[row.RowIndex].Cells[3].Text + "_Content.json", model.RawReport, Files);
-                        DownloadZipFiles(name, Files);
+                        WriteTempFile(name + "_Content.json", model.RawReport, Files);
+                        DownloadZipFiles(zn, Files);
                     }
                 }
                 else
@@ -724,12 +756,24 @@ public partial class Main : System.Web.UI.Page
                     {
                         if (IsKosher(l1.Variant.Option))
                             v0.Operation = l1.Variant.Option;
-                        v0.From = l1.Variant.Low;
-                        v0.To = l1.Variant.High;
+                        v0.From = CheckContent(l1.Variant.Low);
+                        v0.To = CheckContent(l1.Variant.High);
                     }
                 }
             }
         BindData<List<ParmBind>>(grv, binds, SesParmList);
+    }
+
+    private string CheckContent(string s)
+    {
+        string temp = s;
+        s = s.Replace("0", "");
+        s = s.Replace(".", "");
+        s = s.Replace(" ", "");
+        if (s != string.Empty)
+            return temp;
+        else
+            return string.Empty;
     }
 
     private bool IsKosher(string option)
@@ -772,7 +816,7 @@ public partial class Main : System.Web.UI.Page
                 return;
             }
         }
-        model.VariantValuesSet = Session[VarParCnt] as List<VariantValuesSet>;
+        model.VariantValuesSet = Session[VarParCnt] as List<VariantValuesSet>;       
         NewVariant nv = new NewVariant();
         nv.Parameters = new List<VariantContent>();
         ParmChanges = Session[ParmsAltered] as List<string>;
@@ -780,17 +824,18 @@ public partial class Main : System.Web.UI.Page
             if (ParmChanges.Contains(g0.Cells[1].Text))
                 if (IsValid(g0.Cells[5].Text) || IsValid(g0.Cells[6].Text))
                 {
-                    foreach (var v0 in model.VariantValuesSet)
-                    {
-                        foreach (var v1 in v0.Variants)
+                    if (model.VariantValuesSet != null)
+                        foreach (var v0 in model.VariantValuesSet)
                         {
-                            if (v1.Variant.Selname == g0.Cells[1].Text && v1.Variant.Sign == "*")
+                            foreach (var v1 in v0.Variants)
                             {
-                                ShowAlert("Variant " + TextBox4.Text.ToUpper() + " has field " + v1.Variant.Selname + " locked for update");
-                                return;
+                                if (v1.Variant.Selname == g0.Cells[1].Text && v1.Variant.Sign == "*")
+                                {
+                                    ShowAlert("Variant " + TextBox4.Text.ToUpper() + " has field " + v1.Variant.Selname + " locked for update");
+                                    return;
+                                }
                             }
                         }
-                    }
                     VariantContent vc = new VariantContent();
                     vc.Selname = g0.Cells[1].Text;
                     vc.Sign = "I";
@@ -809,6 +854,7 @@ public partial class Main : System.Web.UI.Page
         if (CheckBox1.Checked)
             nv.Save = "X";
         model.SaveVariant(nv);
+        SetMessage("Variant Saved ...");
     }
 
     /// <summary>
@@ -863,9 +909,9 @@ public partial class Main : System.Web.UI.Page
     protected void RadioButtonList1_SelectedIndexChanged(object sender, EventArgs e)
     {
         if (DoingAgenda())
-            Button8.Text = "Save Agenda Item";
+            Button8.Text = "Save Item";
         else
-            Button8.Text = "Create Agenda Item";
+            Button8.Text = "Create Item";
         string nm = " for " + ToCamelCase(GetUserName()) + " ";
         int rb = RadioButtonList1.SelectedIndex;
         if (rb != 0)
@@ -875,7 +921,6 @@ public partial class Main : System.Web.UI.Page
                 DOWs.Visible = true;
                 lbDOW.Text = "Schedule Day of the Week and Time Slot";
                 RadioButtonList2.Visible = true;
-                Button8.Enabled = false;
                 txtNickName.Text = (Session[ReportName] as string) + nm + RadioButtonList1.Text;
             }
             else
@@ -891,7 +936,15 @@ public partial class Main : System.Web.UI.Page
 
     private bool DoingAgenda()
     {
-        return (bool)Session[ShowAgenda];
+        try
+        {
+            return (bool)Session[ShowAgenda];
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+        
     }
 
     protected void RadioButtonList2_SelectedIndexChanged(object sender, EventArgs e)
@@ -928,16 +981,19 @@ public partial class Main : System.Web.UI.Page
     {
         if (showAgenda == true)
         {
-            Button7.Text = "Show Agenda";
+            SetMode("a");
+            Button7.Text = ShowA;
             Button8.Enabled = true;
-            Session[ShowAgenda] = false;
-            Retrieval.Visible = false;
+            Button3.Enabled = true;
+            Button4.Enabled = true;
         }
         else
         {
-            Retrieval.Visible = true;
-            Button8.Enabled = false;
-            GridView3.Caption = "Agenda for User";
+            SetMode("A");
+            Button3.Enabled = false;
+            Button4.Enabled = false;
+            Grid3.Visible = true;
+            GridView3.Caption = "Schedule for User";
             Resource<User, AgendaQuery> query = new Resource<User, AgendaQuery>(new Uri(ConfigurationManager.AppSettings["URL"]));
             User u = new User();
             u.Userid = GetUserName();
@@ -952,28 +1008,75 @@ public partial class Main : System.Web.UI.Page
                         var ab = new AgendaBind();
                         ab.NickName = l1.NICKNAME;
                         ab.Schedule_Type = GetAgendaType(l1.AGENDA_TYPE);
-                        int i = 0;
-                        Int32.TryParse(l1.SLOT, out i);
-                        ab.TimeSlot = i;
+                        ab.TimeSlot = l1.SLOT;
+                        if (ab.TimeSlot.Length == 1)
+                            ab.TimeSlot = "0" + ab.TimeSlot;
                         ab.UUID = l1.PKY;
                         ab.WeekDay = GetDOW(l1.DOW);
-                        ab.UserName = l1.USERID;
+                        ab.UserName = GetUserName();
                         reps.Add(ab);
                     }
-                GridView3.Caption = "Agenda found for user";
+                GridView3.Caption = "Schedule found for user";
                 BindData<List<AgendaBind>>(GridView3, reps, SaveAgenda);
             }
             ReportsShown = true;
             Session[ShowAgenda] = true;
-            Button7.Text = "Hide Agenda";
+            Button7.Text = HideA;
+        }
+    }
+
+    private void SetMode(string v)
+    {
+        {
+            UpdateProgress1.Visible = false;
+            DemoMode = false;
+            ddpDemo.Visible = false;
+            LookupShown = false;
+            showAgenda = false;
+            CheckBox2.Visible = false;
+            Button9.Visible = false;
+            SearchSAP.Visible = false;
+            Button8.Enabled = false;
+            Session[SesShowRep] = false;
+            ReportsShown = false;
+            TextBox1.Visible = false;
+            Button7.Text = ShowA;
+            Session[ShowAgenda] = false;
+            Grid3.Visible = false;
+            Grid1.Visible = false;
+            Grid4.Visible = false;
+            Grid2.Visible = false;
+            VariantSave.Visible = false;
+            AfterB2.Visible = false;
+            BeforeB2.Visible = false;
+            DOWs.Visible = false;
+        }
+        switch (v)
+        {
+            case "a":
+                {
+                    Button8.Enabled = true;
+                    break;
+                }
+            case "A":
+                {
+                    Grid3.Visible = true;
+                    ReportsShown = true;
+                    Session[ShowAgenda] = true;
+                    Button7.Text = HideA;
+                    break;
+                }
+
+            default:
+                break;
         }
     }
 
     private string GetDOW(string dw)
     {
-        foreach (ListControl item in RadioButtonList1.Items)
+        foreach (ListItem item in RadioButtonList2.Items)
         {
-            if (item.SelectedValue == dw)
+            if (item.Value == dw)
                 return item.Text;
         }
         return dw;
@@ -981,9 +1084,9 @@ public partial class Main : System.Web.UI.Page
 
     private string GetAgendaType(string at)
     {
-        foreach (ListControl item in RadioButtonList2.Items)
+        foreach (ListItem item in RadioButtonList1.Items)
         {
-            if (item.SelectedValue == at)
+            if (item.Value == at)
                 return item.Text;
         }
         return at;
@@ -1011,7 +1114,7 @@ public partial class Main : System.Web.UI.Page
                 Resource<Agenda, AgendaResult> query = new Resource<Agenda, AgendaResult>(new Uri(ConfigurationManager.AppSettings["URL"]));
                 query.Authenticate(GetUserName(), Encoding.ASCII.GetBytes(GetPassword()));
                 List<AgendaResult> agenda = query.Execute("Meister.SDK.Report.Agenda.Add", a, false);
-                SetMessage("Agenda " + a.NICKNAME + " changed successfully");
+                SetMessage("Schedule " + a.NICKNAME + " changed successfully");
             }
         }
         else // new agenda item ..
@@ -1022,7 +1125,7 @@ public partial class Main : System.Web.UI.Page
             if (a.AGENDA_TYPE == "W")
                 a.DOW = RadioButtonList2.SelectedValue;
             a.SLOT = TextBox7.Text;
-            if (RadioButton1.Checked)
+            if (RadioButtonList3.SelectedValue == "N")
                 a.WithMetadata = "X";
             else
                 a.ColumnsNamed = "X";
@@ -1039,7 +1142,7 @@ public partial class Main : System.Web.UI.Page
             Resource<Agenda, AgendaResult> query = new Resource<Agenda, AgendaResult>(new Uri(ConfigurationManager.AppSettings["URL"]));
             query.Authenticate(GetUserName(), Encoding.ASCII.GetBytes(GetPassword()));
             List<AgendaResult> agenda = query.Execute("Meister.SDK.Report.Agenda.Add", a, false);
-            SetMessage("Agenda " + a.NICKNAME + " created successfully");
+            SetMessage("Schedule " + a.NICKNAME + " created successfully");
         }
     }
 
@@ -1124,8 +1227,8 @@ public partial class Main : System.Web.UI.Page
                 Resource<Agenda, AgendaResult> query = new Resource<Agenda, AgendaResult>(new Uri(ConfigurationManager.AppSettings["URL"]));
                 query.Authenticate(GetUserName(), Encoding.ASCII.GetBytes(GetPassword()));
                 List<AgendaResult> agenda = query.Execute("Meister.SDK.Report.Agenda.Add", a, false);
-                SetMessage("Agenda deleted");
-                Retrieval.Visible = false;
+                SetMessage("Schedule deleted");
+                Grid3.Visible = false;
                 BeforeB2.Visible = false;
                 DOWs.Visible = false;
             }
@@ -1135,5 +1238,22 @@ public partial class Main : System.Web.UI.Page
     private void SetMessage(string v)
     {
         TextBox3.Text = v;
+    }
+
+    protected void GridView3_RowDataBound(object sender, GridViewRowEventArgs e)
+    {
+        if (!DoingAgenda())
+            foreach (GridViewRow row in GridView3.Rows)
+            {
+                TableCell selectCell = row.Cells[0];
+                if (selectCell.Controls.Count > 0)
+                {
+                    LinkButton selectControl = selectCell.Controls[0] as LinkButton;
+                    if (selectControl != null)
+                    {
+                        selectControl.Text = "Download";
+                    }
+                }
+            }
     }
 }

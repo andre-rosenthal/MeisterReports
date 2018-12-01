@@ -30,7 +30,7 @@ public class AgendaBind
 {
     public string Schedule_Type { get; set; }
     public string WeekDay { get; set; }
-    public int TimeSlot { get; set; }
+    public string TimeSlot { get; set; }
     public string NickName { get; set; }
     public string UUID { get; set; }
     public string UserName { get; set; }
