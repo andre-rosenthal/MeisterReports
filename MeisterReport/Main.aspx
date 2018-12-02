@@ -63,13 +63,16 @@
                     <asp:TextBox ID="TextBox1" runat="server" ToolTip="Try RFAUSZ00" CssClass="auto-style1"></asp:TextBox>
 
                     <asp:DropDownList ID="ddpDemo" runat="server" AutoPostBack="True" OnSelectedIndexChanged="ddpDemo_SelectedIndexChanged" CssClass="auto-style1">
-                        <asp:ListItem>RFAUSZ00</asp:ListItem>
+                        <asp:ListItem>RM07RESLH</asp:ListItem>
+                        <asp:ListItem>S_ALR_87012291</asp:ListItem>
+                        <asp:ListItem>S_ALR_87012326</asp:ListItem>
+                        <asp:ListItem>S_ALR_87012332</asp:ListItem>
                         <asp:ListItem>SD_SALES_ORDERS_VIEW</asp:ListItem>
-                        <asp:ListItem>RFSKPL00</asp:ListItem>
-                        <asp:ListItem>RFEPOJ00</asp:ListItem>
                     </asp:DropDownList>
 
                     <asp:Button ID="Button1" runat="server" Text="Search SAP" OnClick="Button1_Click" style="font-size: medium" />
+                    &nbsp;&nbsp;&nbsp;
+                    <asp:TextBox ID="TextBox8" runat="server" BorderStyle="None" ReadOnly="True" style="font-size: medium" Width="314px"></asp:TextBox>
                 </div>
                 <div id="Grid1" runat="server">
                     <br />
@@ -89,10 +92,11 @@
                         <SortedDescendingCellStyle BackColor="#E9EBEF" />
                         <SortedDescendingHeaderStyle BackColor="#4870BE" />
                     </asp:GridView>
-                    <br />
-                    <br />
                 </div>
+                <p></p>
                 <div id="Grid4" runat="server">
+                    <asp:Label ID="Label10" runat="server" Text="Select Variant DEMO ..." style="font-size: medium"></asp:Label>
+                    <p></p>
                     <asp:GridView ID="GridView4" runat="server" AutoGenerateSelectButton="True" Caption="Variants found for chosen report"
                         CellPadding="4" ForeColor="#333333" GridLines="None" OnSelectedIndexChanged="GridView4_SelectedIndexChanged" style="font-size: medium">
                         <AlternatingRowStyle BackColor="White" />

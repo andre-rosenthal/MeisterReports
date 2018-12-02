@@ -23,6 +23,7 @@ using System.Threading;
 public partial class Main : System.Web.UI.Page
 {
     public List<string> AvailableReports { get; set; }
+    public List<string> AvailableReportsDescr { get; set; }
     public List<string> ValidOptionsNH { get; set; }
     public List<string> ValidOptionsH { get; set; }
     public List<string> ParmChanges { get; set; }
@@ -72,7 +73,9 @@ public partial class Main : System.Web.UI.Page
         SetMessage(String.Empty);
         SetInitial();
         AvailableReports = new List<string>();
+        AvailableReportsDescr = new List<string>();
         AddRepors(AvailableReports);
+        AddReporDescriptions(AvailableReportsDescr);
         ValidOptionsNH = AddOptions(false);
         ValidOptionsH = AddOptions(true);
         Session[ValidH] = ValidOptionsH;
@@ -122,15 +125,26 @@ public partial class Main : System.Web.UI.Page
 
     private void SetDemo()
     {
-        if (Boolean.TryParse(ConfigurationManager.AppSettings[IsDemo], out DemoMode))
-            if (DemoMode)
+        if (IsDemoMode())
+        {
+            DemoMode = true;
+            ddpDemo.Visible = true;
+            TextBox1.Text = ddpDemo.SelectedValue;
+            int i = AvailableReports.IndexOf(ddpDemo.SelectedValue);
+            if (i >= 0)
             {
-                DemoMode = true;
-                ddpDemo.Visible = true;
-                TextBox1.Text = ddpDemo.SelectedValue;
+                TextBox8.Text = AvailableReportsDescr[i];
             }
-            else
-                TextBox1.Visible = true;
+        }
+        else
+            TextBox1.Visible = true;
+    }
+
+    private bool IsDemoMode()
+    {
+        if (Boolean.TryParse(ConfigurationManager.AppSettings[IsDemo], out DemoMode))
+            return DemoMode;
+        return false;
     }
 
     private void SetInitial()
@@ -182,15 +196,25 @@ public partial class Main : System.Web.UI.Page
     private void AddRepors(List<string> l)
     {
         l.Add("RM07RESLH");
-        l.Add("RFAUSZ00");
+        l.Add("S_ALR_87012326");
         l.Add("SD_SALES_ORDERS_VIEW");
-        l.Add("RFSKPL00");
-        l.Add("RFEPOJ00");
+        l.Add("S_ALR_87012332");
+        l.Add("S_ALR_87012291");
+    }
+
+    private void AddReporDescriptions(List<string> l)
+    {
+        l.Add("List Inventory Mgmt - report");
+        l.Add("Char of Accounts - TCode");
+        l.Add("List of Sales Orders - Report");
+        l.Add("Statement Cust/Vendor/GL Acctn - TCode");
+        l.Add("Line Item Journal - TCode");
     }
 
     protected void Button1_Click(object sender, EventArgs e)
     {
         Cleanup();
+        Label10.Visible = false;
         if (TextBox1.Text != string.Empty)
         {
             model.ReportFinder(TextBox1.Text.ToUpper());
@@ -252,6 +276,10 @@ public partial class Main : System.Web.UI.Page
                 SearchSAP.Visible = true;
                 UpdateProgress1.Visible = false;
                 SetMessage("Done reading Report and Variants ....");
+                if (IsDemoMode())
+                {
+                    Label10.Visible = true;
+                }
             }
             else
             {
@@ -478,7 +506,7 @@ public partial class Main : System.Web.UI.Page
         string value = string.Empty;
         try
         {
-            value = ((TextBox)(TextBox)(gvr.Cells[idx].Controls[0])).Text;
+            value = ((TextBox)(TextBox)(gvr.Cells[idx].Controls[0])).Text.ToUpper();
         }
         catch (Exception ex)
         { }
@@ -1149,6 +1177,11 @@ public partial class Main : System.Web.UI.Page
     protected void ddpDemo_SelectedIndexChanged(object sender, EventArgs e)
     {
         TextBox1.Text = ddpDemo.SelectedValue;
+        int i = AvailableReports.IndexOf(ddpDemo.SelectedValue);
+        if (i >= 0)
+        {
+            TextBox8.Text = AvailableReportsDescr[i];
+        }
     }
 
     /// <summary>
