@@ -658,13 +658,14 @@ public partial class Main : System.Web.UI.Page
                     {
                         Button8.Enabled = true;
                         Session[SelectedAgenda] = uuid;
+                        RadioButtonList2.SelectedValue = ab.WeekDay;
+                        RadioButtonList1.SelectedValue = ab.Schedule_Type;
                     }
                 }
                 else
                 {
                     row.BackColor = ColorTranslator.FromHtml("#FFFFFF");
                     row.ToolTip = "Click to select this row.";
-                    Button9.Visible = false;
                 }
             }
         }
@@ -1264,6 +1265,7 @@ public partial class Main : System.Web.UI.Page
                 Grid3.Visible = false;
                 BeforeB2.Visible = false;
                 DOWs.Visible = false;
+                Button7_Click(Button7, null);
             }
         }
     }

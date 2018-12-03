@@ -207,7 +207,11 @@
                         <asp:TextBox ID="txtNickName" runat="server" Width="375px" style="font-size: medium"></asp:TextBox>
                         <br />
                         <br />
-                        <asp:Button ID="Button8" runat="server" OnClick="Button8_Click" Text="Create Agenda Item" style="font-size: medium" />
+                        <asp:Button ID="Button8" runat="server" OnClick="Button8_Click" Text="Create Item" style="font-size: medium" />
+                        &nbsp;&nbsp;
+                        <asp:Button ID="Button9" runat="server" OnClick="ConfirmDelete_Click" style="font-size: medium" Text="Delete Item" Visible="False" />
+                        &nbsp;
+                        <asp:CheckBox ID="CheckBox2" runat="server" AutoPostBack="true" OnCheckedChanged="CheckBox2_CheckedChanged" style="font-size: medium" Text="Confirm Deletion?" Visible="False" />
                         <br />
                     </asp:Panel>
                     <p>
@@ -218,15 +222,9 @@
                     <h4>
                         <asp:Label ID="Label4" runat="server" Text="Report Unique Identifier"></asp:Label>
                         <br />
-                        <br />
                         <asp:TextBox ID="TextBox2" runat="server" BorderStyle="None" ReadOnly="True" Width="279px"></asp:TextBox>
                     </h4>
                 </div>
-                <asp:Button ID="Button9" runat="server" Text="Delete Item" OnClick="ConfirmDelete_Click" Visible="False" style="font-size: medium" />
-                &nbsp;&nbsp;
-                <asp:CheckBox ID="CheckBox2" AutoPostBack="true" runat="server" OnCheckedChanged="CheckBox2_CheckedChanged"
-                    Text="Confirm Deletion?" Visible="False" style="font-size: medium" />
-
                 <p>
                     <hr />
                     <h3><asp:Label ID="msgLabel" runat="server" Text="SAP Messages .... "></asp:Label></h3>
