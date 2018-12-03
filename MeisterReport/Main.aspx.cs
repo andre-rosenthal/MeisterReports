@@ -650,7 +650,7 @@ public partial class Main : System.Web.UI.Page
             {
                 if (row.RowIndex == GridView3.SelectedIndex)
                 {
-                    string uuid = GridView3.Rows[row.RowIndex].Cells[4].Text;
+                    string uuid = GridView3.Rows[row.RowIndex].Cells[5].Text;
                     row.BackColor = ColorTranslator.FromHtml("#A1DCF2");
                     row.ToolTip = "Retrieving Schedule for user";
                     AgendaBind ab = FromAgenda(uuid);
@@ -658,8 +658,20 @@ public partial class Main : System.Web.UI.Page
                     {
                         Button8.Enabled = true;
                         Session[SelectedAgenda] = uuid;
-                        RadioButtonList2.SelectedValue = ab.WeekDay;
-                        RadioButtonList1.SelectedValue = ab.Schedule_Type;
+                        RadioButtonList2.Visible = false;
+                        TextBox7.Text = ab.TimeSlot;
+                        txtNickName.Text = ab.NickName;
+                        lbDOW.Text = "Schedule Time Slot";
+                        if (ab.WeekDay != string.Empty)
+                        {
+                            RadioButtonList2.SelectedValue = ab.WeekDay;
+                            RadioButtonList2.Visible = true;
+                            lbDOW.Text = "Schedule Day of the Week and Time Slot";
+                        }
+                        if (ab.Schedule_Type != string.Empty)
+                            RadioButtonList1.SelectedValue = ab.Schedule_Type.Substring(0, 1);
+                        else
+                            RadioButtonList1.SelectedValue = "D";
                     }
                 }
                 else
@@ -1134,11 +1146,15 @@ public partial class Main : System.Web.UI.Page
             if (ab != null)
             {
                 Agenda a = new Agenda();
-                a.AGENDA_TYPE = RadioButtonList1.DataValueField;
+                a.AGENDA_TYPE = RadioButtonList1.SelectedValue;
                 if (a.AGENDA_TYPE == "W")
-                    a.DOW = RadioButtonList2.DataValueField;
+                    a.DOW = RadioButtonList2.SelectedValue;
                 a.NICKNAME = txtNickName.Text;
                 a.SLOT = TextBox7.Text;
+                a.Parameters = new List<Parameter>();
+                a.PKY = ab.UUID;
+                Parameter p = new Parameter();
+                a.Parameters.Add(p);
                 // call to update the agenda ... not the report within!
                 Resource<Agenda, AgendaResult> query = new Resource<Agenda, AgendaResult>(new Uri(ConfigurationManager.AppSettings["URL"]));
                 query.Authenticate(GetUserName(), Encoding.ASCII.GetBytes(GetPassword()));
@@ -1257,6 +1273,7 @@ public partial class Main : System.Web.UI.Page
             if (a != null)
             {
                 CheckBox2.Visible = false;
+                CheckBox2.Checked = false;
                 Button9.Visible = false;
                 Resource<Agenda, AgendaResult> query = new Resource<Agenda, AgendaResult>(new Uri(ConfigurationManager.AppSettings["URL"]));
                 query.Authenticate(GetUserName(), Encoding.ASCII.GetBytes(GetPassword()));
@@ -1265,6 +1282,8 @@ public partial class Main : System.Web.UI.Page
                 Grid3.Visible = false;
                 BeforeB2.Visible = false;
                 DOWs.Visible = false;
+                showAgenda = false;
+                Thread.Sleep(100);
                 Button7_Click(Button7, null);
             }
         }
