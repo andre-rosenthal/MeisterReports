@@ -7,7 +7,7 @@ using System.Web;
 
 public class User
 {
-    public String Userid { get; set; }
+    public String USERID { get; set; }
 }
 /// <summary>
 /// Query ....

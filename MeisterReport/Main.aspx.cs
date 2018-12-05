@@ -1037,9 +1037,9 @@ public partial class Main : System.Web.UI.Page
             GridView3.Caption = "Schedule for User";
             Resource<User, AgendaQuery> query = new Resource<User, AgendaQuery>(new Uri(ConfigurationManager.AppSettings["URL"]));
             User u = new User();
-            u.Userid = GetUserName();
+            u.USERID = GetUserName();
             query.Authenticate(GetUserName(), Encoding.ASCII.GetBytes(GetPassword()));
-            List<AgendaQuery> agenda = query.Execute("Meister.SDK.Reports.Agenda", u, false);
+            List<AgendaQuery> agenda = query.Execute("Meister.SDK.Report.Agenda", u, false);
             List<AgendaBind> reps = new List<AgendaBind>();
             if (agenda != null)
             {
