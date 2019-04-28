@@ -534,47 +534,45 @@ public partial class Main : System.Web.UI.Page
             Grid3.Visible = true;
             Button7.Enabled = false;
             model.ReportRetriever(GetUserName());
-            IEnumerable<ReportData> list = model.ReportData as IEnumerable<ReportData>;
             reps = new List<BindReportsByUser>();
-            if (list != null)
+            if (model.ReportData != null)
             {
-                foreach (var l in list)
-                    foreach (var l1 in l.ReportDatum)
+                foreach (var l1 in model.ReportData.ReportDatum)
+                {
+                    var br = new BindReportsByUser();
+                    br.UUID = l1.Pky;
+                    DateTime dt = FromStringDT(l1.Date, l1.Time);
+                    br.Date = String.Format("{0:yyyy/MM/dd}", dt);
+                    br.Time = String.Format("{0:HH:mm tt}", dt);
+                    br.ReportName = l1.Report.Name;
+                    br.Description = l1.Report.Description;
+                    switch (l1.Status)
                     {
-                        var br = new BindReportsByUser();
-                        br.UUID = l1.Pky;
-                        DateTime dt = FromStringDT(l1.Date, l1.Time);
-                        br.Date = String.Format("{0:yyyy/MM/dd}", dt);
-                        br.Time = String.Format("{0:HH:mm tt}", dt);
-                        br.ReportName = l1.Report.Name;
-                        br.Description = l1.Report.Description;
-                        switch (l1.Status)
-                        {
-                            case "S":
-                                {
-                                    br.Status = "Scheduled";
-                                    break;
-                                }
-                            case "R":
-                                {
-                                    br.Status = "Running";
-                                    break;
-                                }
-                            case "F":
-                                {
-                                    br.Status = "Finished";
-                                    break;
-                                }
-                            case "A":
-                                {
-                                    br.Status = "Aborted";
-                                    break;
-                                }
-                            default:
+                        case "S":
+                            {
+                                br.Status = "Scheduled";
                                 break;
-                        }                       
-                        reps.Add(br);
+                            }
+                        case "R":
+                            {
+                                br.Status = "Running";
+                                break;
+                            }
+                        case "F":
+                            {
+                                br.Status = "Finished";
+                                break;
+                            }
+                        case "A":
+                            {
+                                br.Status = "Aborted";
+                                break;
+                            }
+                        default:
+                            break;
                     }
+                    reps.Add(br);
+                }
                 GridView3.Caption = "Reports found for user";
                 BindData<List<BindReportsByUser>>(GridView3, reps, SesReports);
             }
@@ -1035,11 +1033,7 @@ public partial class Main : System.Web.UI.Page
             Button4.Enabled = false;
             Grid3.Visible = true;
             GridView3.Caption = "Schedule for User";
-            Resource<User, AgendaQuery> query = new Resource<User, AgendaQuery>(new Uri(ConfigurationManager.AppSettings["URL"]));
-            User u = new User();
-            u.USERID = GetUserName();
-            query.Authenticate(GetUserName(), Encoding.ASCII.GetBytes(GetPassword()));
-            List<AgendaQuery> agenda = query.Execute("Meister.SDK.Report.Agenda", u, false);
+            dynamic agenda = model.UserAgenda(GetUserName());
             List<AgendaBind> reps = new List<AgendaBind>();
             if (agenda != null)
             {
@@ -1153,12 +1147,8 @@ public partial class Main : System.Web.UI.Page
                 a.SLOT = TextBox7.Text;
                 a.Parameters = new List<Parameter>();
                 a.PKY = ab.UUID;
-                Parameter p = new Parameter();
-                a.Parameters.Add(p);
-                // call to update the agenda ... not the report within!
-                Resource<Agenda, AgendaResult> query = new Resource<Agenda, AgendaResult>(new Uri(ConfigurationManager.AppSettings["URL"]));
-                query.Authenticate(GetUserName(), Encoding.ASCII.GetBytes(GetPassword()));
-                List<AgendaResult> agenda = query.Execute("Meister.SDK.Report.Agenda.Add", a, false);
+
+                List<AgendaResult> agenda = model.UserSetAgenda(a);
                 SetMessage("Schedule " + a.NICKNAME + " changed successfully");
             }
         }
@@ -1184,9 +1174,9 @@ public partial class Main : System.Web.UI.Page
             a.Parameters = new List<Parameter>();
             foreach (var item in s.Parameters)
                 a.Parameters.Add(item);
-            Resource<Agenda, AgendaResult> query = new Resource<Agenda, AgendaResult>(new Uri(ConfigurationManager.AppSettings["URL"]));
-            query.Authenticate(GetUserName(), Encoding.ASCII.GetBytes(GetPassword()));
-            List<AgendaResult> agenda = query.Execute("Meister.SDK.Report.Agenda.Add", a, false);
+            //Resource<Agenda, AgendaResult> query = new Resource<Agenda, AgendaResult>(new Uri(ConfigurationManager.AppSettings["URL"]));
+            //query.Authenticate(GetUserName(), Encoding.ASCII.GetBytes(GetPassword()));
+            List<AgendaResult> agenda = model.UserSetAgenda(a);
             SetMessage("Schedule " + a.NICKNAME + " created successfully");
         }
     }
@@ -1275,9 +1265,9 @@ public partial class Main : System.Web.UI.Page
                 CheckBox2.Visible = false;
                 CheckBox2.Checked = false;
                 Button9.Visible = false;
-                Resource<Agenda, AgendaResult> query = new Resource<Agenda, AgendaResult>(new Uri(ConfigurationManager.AppSettings["URL"]));
-                query.Authenticate(GetUserName(), Encoding.ASCII.GetBytes(GetPassword()));
-                List<AgendaResult> agenda = query.Execute("Meister.SDK.Report.Agenda.Add", a, false);
+                //Resource<Agenda, AgendaResult> query = new Resource<Agenda, AgendaResult>(new Uri(ConfigurationManager.AppSettings["URL"]));
+                //query.Authenticate(GetUserName(), Encoding.ASCII.GetBytes(GetPassword()));
+                List<AgendaResult> agenda = model.UserSetAgenda(a);
                 SetMessage("Schedule deleted");
                 Grid3.Visible = false;
                 BeforeB2.Visible = false;

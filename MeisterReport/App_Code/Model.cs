@@ -2,8 +2,12 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Net.Http.Headers;
+using System.Text;
 using System.Web;
+using MeisterCore;
 using Newtonsoft.Json;
+using static MeisterCore.Support.MeisterSupport;
 
 /// <summary>
 /// Summary description for Model
@@ -12,7 +16,7 @@ public class Model
 {
     public enum Calls
     {
-        unkown,
+        unknown,
         GetTcodesOrProgramsByHint,
         GetParameters,
         Scheduler,
@@ -25,12 +29,14 @@ public class Model
     public List<ResultSet> ResultSet { get; set; }
     public List<ParmSet> parmSet { get; set; }
     public List<SchedulerResponse> schedulerResponses { get; set; }
-    public List<ReportData> ReportData { get; set; }
+    public ReportData ReportData { get; set; }
     public TimeSpan TimeSpan { get; private set; }
     public string RawReport { get; set; }
     public List<VariantsSet> Variants { get; set; }
     public List<Messages> Messages { get; set; }
     public List<VariantValuesSet> VariantValuesSet { get; set; }
+    public Uri od2 = new Uri("Http://MeisterAzure.Dyndns.org:8001");
+
 
     private Controller Controller;
 
@@ -38,7 +44,7 @@ public class Model
     {
         this.Controller = new Controller();
         Dict = new Dictionary<Calls, string>();
-        Dict.Add(Calls.unkown, @"");
+        Dict.Add(Calls.unknown, @"");
         Dict.Add(Calls.GetTcodesOrProgramsByHint, @"Meister.SDK.Report.Finder");
         Dict.Add(Calls.GetParameters, @"Meister.SDK.Report.Parameters");
         Dict.Add(Calls.Scheduler, @"Meister.SDK.Report.Scheduler");
@@ -116,15 +122,35 @@ public class Model
 
     public void MyReports(string user)
     {
+        var byteArray = Encoding.ASCII.GetBytes("DEMOUSER:DemoUser.");
         SchedulerSet sc = new SchedulerSet();
         sc.UserId = user;
-        string st = Serialize.ToJson<SchedulerSet>(sc);
-        EndPoint endPoint = GetEndPoint(Calls.Retriever);
-        var sw = Stopwatch.StartNew();
-        string s = Controller.ToString(Controller.ExecuteCall(endPoint, st, false));
-        ReportData = Controller.FromString<ReportData>(s);
-        sw.Stop();
-        TimeSpan = sw.Elapsed;
+        AuthenticationHeaderValue headerValue = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(byteArray));
+        Resource<SchedulerSet, ReportDatum> resource = new Resource<SchedulerSet, ReportDatum>(od2, headerValue,
+                                        MeisterExtensions.RemoveNullsAndEmptyArrays,
+                                        MeisterOptions.None,
+                                        AuthenticationModes.Basic,
+                                        RuntimeOptions.ExecuteSync);
+        ReportData = new ReportData();
+        try
+        {
+            if (resource.Authenticate())
+            {
+                var response = resource.Execute("Meister.SDK.Report.Retrieval", sc);
+                ReportData.ReportDatum = new List<ReportDatum>();
+                ReportData.ReportDatum.AddRange(response);
+            }
+            else
+            {
+                var response = resource.Execute("Meister.SDK.Report.Retrieval", sc);
+                ReportData.ReportDatum = new List<ReportDatum>();
+                ReportData.ReportDatum.AddRange(response);
+            }
+        }
+        catch (Exception ex)
+        {
+           
+        }
     }
 
     public void VariantContents(string program, string variant)
@@ -162,5 +188,62 @@ public class Model
         Messages = Controller.ToList<Messages>(Controller.ExecuteCall(endPoint, st, false));
         sw.Stop();
         TimeSpan = sw.Elapsed;
+    }
+
+    public dynamic UserAgenda(string us)
+    {
+        User u = new User();
+        u.USERID = us;
+        var byteArray = Encoding.ASCII.GetBytes("DEMOUSER:DemoUser.");
+        AuthenticationHeaderValue headerValue = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(byteArray));
+        Resource<User, AgendaQuery> resource = new Resource<User, AgendaQuery>(od2, headerValue,
+                                        MeisterExtensions.RemoveNullsAndEmptyArrays,
+                                        MeisterOptions.None,
+                                        AuthenticationModes.Basic,
+                                        RuntimeOptions.ExecuteSync);
+        dynamic response = null;
+        try
+        {
+            if (resource.Authenticate())
+            {
+                response = resource.Execute("Meister.SDK.Report.Agenda", u);
+            }
+            else
+            {
+
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+        return response;
+    }
+    public dynamic UserSetAgenda(Agenda a)
+    {
+        var byteArray = Encoding.ASCII.GetBytes("DEMOUSER:DemoUser.");
+        AuthenticationHeaderValue headerValue = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(byteArray));
+        Resource<Agenda, AgendaResult> resource = new Resource<Agenda, AgendaResult>(od2, headerValue,
+                                        MeisterExtensions.RemoveNullsAndEmptyArrays,
+                                        MeisterOptions.None,
+                                        AuthenticationModes.Basic,
+                                        RuntimeOptions.ExecuteSync);
+        dynamic response = null;
+        try
+        {
+            if (resource.Authenticate())
+            {
+                response = resource.Execute("Meister.SDK.Report.Agenda.Add", a);
+            }
+            else
+            {
+
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+        return response;
     }
 }
