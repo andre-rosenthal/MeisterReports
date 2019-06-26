@@ -23,6 +23,8 @@ using System.Threading;
 public partial class Main : System.Web.UI.Page
 {
     public List<string> AvailableReports { get; set; }
+
+    public DateTime ThisDate { get; set; }
     public List<string> AvailableReportsDescr { get; set; }
     public List<string> ValidOptionsNH { get; set; }
     public List<string> ValidOptionsH { get; set; }
@@ -70,6 +72,7 @@ public partial class Main : System.Web.UI.Page
     protected void Page_Load(object sender, EventArgs e)
     {
         model = new Model();
+        ThisDate = DateTime.Today;
         SetMessage(String.Empty);
         SetInitial();
         AvailableReports = new List<string>();
@@ -348,6 +351,7 @@ public partial class Main : System.Web.UI.Page
                 ShowAlert(DoMessage(rep, AvailableReports));
         AfterB2.Visible = true;
         Scheduler s = new Scheduler();
+        s.Variant = Session[VarNameSaved].ToString();
         if (RadioButtonList3.SelectedValue == "N" )
             s.ColumnsNamed = "X";
         else
@@ -953,14 +957,26 @@ public partial class Main : System.Web.UI.Page
             Button8.Text = "Create Item";
         string nm = " for " + ToCamelCase(GetUserName()) + " ";
         int rb = RadioButtonList1.SelectedIndex;
+        Cal.Visible = false;
+        DOWs.Visible = false;
+        Hours.Visible = false;
         if (rb != 0)
         {
             if (rb == 2)
             {
                 DOWs.Visible = true;
+                Hours.Visible = true;
                 lbDOW.Text = "Schedule Day of the Week and Time Slot";
                 RadioButtonList2.Visible = true;
                 txtNickName.Text = (Session[ReportName] as string) + nm + RadioButtonList1.Text;
+            }
+            else if (rb == 1)
+            {
+                Cal.Visible = true;
+                Hours.Visible = true;
+                LbHou.Text = "Schedule Specifc Date and Time Slot";
+                RadioButtonList2.Visible = true;
+                txtNickName.Text = (Session[ReportName] as string) + nm + "on " + ThisDate.ToShortDateString(); 
             }
             else
             {
@@ -990,7 +1006,7 @@ public partial class Main : System.Web.UI.Page
     {
         int rb = RadioButtonList2.SelectedIndex;
         string nm = " for " + ToCamelCase(GetUserName()) + " ";
-        txtNickName.Text = (Session[ReportName] as string) + nm + RadioButtonList1.SelectedItem.Text + " on " + RadioButtonList2.SelectedItem.Text;
+        txtNickName.Text = (Session[ReportName] as string) + nm + RadioButtonList1.SelectedItem.Text +  " on " + RadioButtonList2.SelectedItem.Text;
         Session[SavedNick] = txtNickName.Text;
     }
 
@@ -1085,6 +1101,8 @@ public partial class Main : System.Web.UI.Page
             AfterB2.Visible = false;
             BeforeB2.Visible = false;
             DOWs.Visible = false;
+            Cal.Visible = false;
+            Hours.Visible = false;
         }
         switch (v)
         {
@@ -1299,5 +1317,12 @@ public partial class Main : System.Web.UI.Page
                     }
                 }
             }
+    }
+
+    protected void Calendar1_SelectionChanged(object sender, EventArgs e)
+    {
+        string nm = " for " + ToCamelCase(GetUserName()) + " ";
+        this.ThisDate = Calendar1.SelectedDate.Date;
+        txtNickName.Text = (Session[ReportName] as string) + nm + "on " + ThisDate.ToShortDateString();
     }
 }

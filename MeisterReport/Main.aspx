@@ -1,4 +1,4 @@
-﻿<%@ Page Language="C#" Debug="true" AutoEventWireup="true" CodeFile="Main.aspx.cs" Inherits="Main" %>
+﻿<%@ Page Language="C#" Debug="true" AutoEventWireup="true" CodeFile ="Main.aspx.cs" Inherits="Main" %>
 
 <!DOCTYPE html>
 
@@ -175,13 +175,17 @@
                     <asp:RadioButtonList ID="RadioButtonList1" runat="server" AutoPostBack="True"
                         OnSelectedIndexChanged="RadioButtonList1_SelectedIndexChanged" RepeatDirection="Horizontal" style="font-size: medium">
                         <asp:ListItem Selected="True" Value="I">Immediate</asp:ListItem>
+                        <asp:ListItem Value="T">This Date</asp:ListItem>
                         <asp:ListItem Value="D">Daily</asp:ListItem>
                         <asp:ListItem Value="W">Weekly</asp:ListItem>
                         <asp:ListItem Value="Q">Quarterly</asp:ListItem>
                         <asp:ListItem Value="S">Semi-Annually</asp:ListItem>
                         <asp:ListItem Value="A">Annually</asp:ListItem>
                     </asp:RadioButtonList>
+                    <asp:Panel ID="Cal" runat="server">
+                        Select a Date:<br /> &nbsp;<asp:Calendar ID="Calendar1" runat="server" OnSelectionChanged="Calendar1_SelectionChanged" SelectedDate="<%# DateTime.Today %>" />
 
+                    </asp:Panel>
                     <br />
                     <asp:Panel ID="DOWs" runat="server">
                         <asp:Label ID="lbDOW" runat="server"></asp:Label>
@@ -197,6 +201,9 @@
                             <asp:ListItem Value="X">Saturday</asp:ListItem>
                         </asp:RadioButtonList>
                         <br />
+                    </asp:Panel>
+                    <asp:Panel ID="Hours" runat="server">
+                        <asp:Label ID="LbHou" runat="server"></asp:Label>
                         <span class="auto-style1">Hour Slot:</span>&nbsp;&nbsp;&nbsp;
                         <asp:TextBox ID="TextBox7" runat="server" CausesValidation="True" MaxLength="2" Width="33px"
                             OnTextChanged="TextBox7_TextChanged" ToolTip="00-23 as Hour" AutoPostBack="True" style="font-size: medium"></asp:TextBox>
