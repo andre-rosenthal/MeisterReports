@@ -4,7 +4,7 @@
     using Newtonsoft.Json;
     using Newtonsoft.Json.Converters;
 
-public class VarientBind
+public class VariantBind
 {
     public string VariantName { get; set; }
     public string Description { get; set; }

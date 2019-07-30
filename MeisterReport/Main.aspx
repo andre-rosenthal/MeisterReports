@@ -1,4 +1,4 @@
-﻿<%@ Page Language="C#" Debug="true" AutoEventWireup="true" CodeFile ="Main.aspx.cs" Inherits="Main" %>
+﻿<%@ Page Language="C#" Debug="true" AutoEventWireup="true" CodeFile ="Main.aspx.cs" Inherits="Main"  %>
 
 <!DOCTYPE html>
 
@@ -25,7 +25,7 @@
          </script>
         <%--  <asp:ScriptManager runat="server" ID="scriptManager" EnablePageMethods="True">
 </asp:ScriptManager>--%>
-        <h1>Meister Reporter</h1>
+        <h1>Meister Reporter </h1>
         <h2>Select an options:</h2><br />
         <br />
         <asp:Button ID="Button7" runat="server" OnClick="Button7_Click" Text="Show Agenda" CssClass="auto-style1" />
@@ -183,7 +183,7 @@
                         <asp:ListItem Value="A">Annually</asp:ListItem>
                     </asp:RadioButtonList>
                     <asp:Panel ID="Cal" runat="server">
-                        Select a Date:<br /> &nbsp;<asp:Calendar ID="Calendar1" runat="server" OnSelectionChanged="Calendar1_SelectionChanged" SelectedDate="<%# DateTime.Today %>" />
+                        Select a Date:<br /> &nbsp;<asp:Calendar ID="Calendar1" runat="server" OnSelectionChanged="Calendar1_SelectionChanged" SelectedDate="<%# DateTime.Today %>" OnDayRender="Calendar1_DayRender" />
 
                     </asp:Panel>
                     <br />
@@ -211,7 +211,7 @@
                         <br />
                         <asp:Label ID="Label9" runat="server" Text="Nickname:" style="font-size: medium"></asp:Label>
                         &nbsp;&nbsp;
-                        <asp:TextBox ID="txtNickName" runat="server" Width="375px" style="font-size: medium"></asp:TextBox>
+                        <asp:TextBox ID="txtNickName" runat="server" Width="375px" style="font-size: medium" OnTextChanged="txtNickName_TextChanged"></asp:TextBox>
                         <br />
                         <br />
                         <asp:Button ID="Button8" runat="server" OnClick="Button8_Click" Text="Create Item" style="font-size: medium" />

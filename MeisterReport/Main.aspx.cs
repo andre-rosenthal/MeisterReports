@@ -1,24 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Configuration;
+using System.Drawing;
+using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Web;
+using System.Web.Services;
 using System.Web.UI;
 using System.Web.UI.WebControls;
-using System.Configuration;
-using System.Diagnostics;
-using System.IO;
-using System.IO.Compression;
-using System.Net.Http;
-using System.Net.Http.Headers;
-using System.Security;
-using System.Text;
-using System.Threading.Tasks;
-using System.Drawing;
-using MeisterCore;
-using System.Net;
-using System.Linq.Expressions;
-using System.Web.Services;
-using System.Threading;
 
 public partial class Main : System.Web.UI.Page
 {
@@ -30,7 +20,7 @@ public partial class Main : System.Web.UI.Page
     public List<string> ValidOptionsH { get; set; }
     public List<string> ParmChanges { get; set; }
     private bool DemoMode = false;
-    public Model model { get; set; }
+    public Model Model { get; set; }
     public Visibilities MyVisibilities { get; set; }
     public bool ReportsShown { get; set; }
     public bool showAgenda { get; set; }
@@ -60,21 +50,28 @@ public partial class Main : System.Web.UI.Page
     private const string SavedNick = "SavedNick";
     private const string VarNameSaved = "VarNameSaved";
     private const string SavedAgendaForUpdate = "SavedAgendaForUpdate";
-    private const string Password = "Password";
-    private const string UserName = "UserName";
     private const string IsDemo = "IsDemo";
     private const string ShowA = "Show Scheduler";
     private const string HideA = "Hide Scheduler";
+    private const string userName = "UserName";
+    private const string theModel = "Model";
+    private const string thisdate = "thisdate";
     public List<BindReportsByUser> reps = null;
     private List<ParmBind> parmBind = null;
-    public List<VarientBind> variantBodies { get; set; }
+    public List<VariantBind> variantBodies { get; set; }
 
     protected void Page_Load(object sender, EventArgs e)
     {
-        model = new Model();
+        Model = Session[theModel] as Model;
+        if (Model == null)
+            this.Response.Redirect("~/login.aspx");
+        object value = Session["od4"];
+        bool bod4 = false;
+        if (value != null)
+            bod4 = (bool)value;
+        Model.Controller.IsOD4 = bod4;
         ThisDate = DateTime.Today;
         SetMessage(String.Empty);
-        SetInitial();
         AvailableReports = new List<string>();
         AvailableReportsDescr = new List<string>();
         AddRepors(AvailableReports);
@@ -83,49 +80,50 @@ public partial class Main : System.Web.UI.Page
         ValidOptionsH = AddOptions(true);
         Session[ValidH] = ValidOptionsH;
         Session[ValidNH] = ValidOptionsNH;
-        Controller c = new Controller();
         // build {"EDM":'
-        EDM = "{" + c.AddQuotes("EDM") + ":";
-        Content = "," + c.AddQuotes("CONTENT") + ":";
+        EDM = "{" + Model.Controller.AddQuotes("EDM") + ":";
+        Content = "," + Model.Controller.AddQuotes("CONTENT") + ":";
         if (!this.IsPostBack)
         {
             SetMode("*");
-            SetDemo();           
+            Calendar1.TodaysDate = DateTime.Today;
+            Calendar1.SelectedDate = Calendar1.TodaysDate;
+            SetDemo();
             Session[ParmsAltered] = new List<string>();
             MyVisibilities = new Visibilities();
             MyVisibilities.SetOperations(Visibilities.Operations.gurnist);
         }
         else
         {
-            if (Session.Count > 0)
-            {
-                foreach (var k in Session.Keys)
+                if (Session.Count > 0)
                 {
-                    switch (k.ToString())
+                    foreach (var k in Session.Keys)
                     {
-                        case SesShowRep:
-                            {
-                                ReportsShown = (bool)Session[SesShowRep];
+                        switch (k.ToString())
+                        {
+                            case SesShowRep:
+                                {
+                                    ReportsShown = (bool)Session[SesShowRep];
+                                    break;
+                                }
+                            case SesHasParm:
+                                {
+                                    HasParmChose = (bool)Session[SesHasParm];
+                                    break;
+                                }
+                            case ShowAgenda:
+                                {
+                                    showAgenda = (bool)Session[ShowAgenda];
+                                    break;
+                                }
+                            default:
                                 break;
-                            }
-                        case SesHasParm:
-                            {
-                                HasParmChose = (bool)Session[SesHasParm];
-                                break;
-                            }
-                        case ShowAgenda:
-                            {
-                                showAgenda = (bool)Session[ShowAgenda];
-                                break;
-                            }
-                        default:
-                            break;
+                        }
                     }
                 }
-            }
         }
     }
-
+  
     private void SetDemo()
     {
         if (IsDemoMode())
@@ -150,20 +148,10 @@ public partial class Main : System.Web.UI.Page
         return false;
     }
 
-    private void SetInitial()
-    {
-        Session[UserName] = ConfigurationManager.AppSettings[UserName];
-        Session[Password] = ConfigurationManager.AppSettings[Password];
-    }
 
     private string GetUserName()
     {
-        return Session[UserName] as string;
-    }
-
-    private char[] GetPassword()
-    {
-        return ((string)Session[Password]).ToCharArray();
+        return Session[userName] as string;
     }
 
     private List<string> AddOptions(bool high)
@@ -220,21 +208,20 @@ public partial class Main : System.Web.UI.Page
         Label10.Visible = false;
         if (TextBox1.Text != string.Empty)
         {
-            model.ReportFinder(TextBox1.Text.ToUpper());
-            IEnumerable<ResultSet> list = model.ResultSet as IEnumerable<ResultSet>;
+            Model.ReportFinder(TextBox1.Text.ToUpper());
+            ResultSet list = Model.ResultSet as ResultSet;
             List<BindResults> enums = new List<BindResults>();
-            foreach (var l in list)
-                foreach (var l1 in l.results)
+            foreach (var l1 in list.results)
+            {
+                var br = new BindResults();
+                br.type = l1.Enum_id;
+                foreach (var l2 in l1.Enums)
                 {
-                    var br = new BindResults();
-                    br.type = l1.Enum_id;
-                    foreach (var l2 in l1.Enums)
-                    {
-                        br.name = l2.Name;
-                        br.value = l2.value;
-                        enums.Add(br);
-                    }
+                    br.name = l2.Name;
+                    br.value = l2.value;
+                    enums.Add(br);
                 }
+            }
             BindData<List<BindResults>>(GridView1, enums, SesMatches);
             Grid1.Visible = true;
         }
@@ -269,10 +256,10 @@ public partial class Main : System.Web.UI.Page
                 UpdateProgress1.Visible = true;
                 Session[ReportName] = GridView1.Rows[row.RowIndex].Cells[2].Text;
                 SetMessage("Reading Report and Variants ....");
-                model.Parameters(Session[ReportName] as string);
-                Session[ParmSet] = model.parmSet;
+                Model.Parameters(Session[ReportName] as string);
+                Session[ParmSet] = Model.parmSet;
                 BuildParameterList(GridView2);
-                model.FindVariants(GridView1.Rows[row.RowIndex].Cells[2].Text);
+                Model.FindVariants(GridView1.Rows[row.RowIndex].Cells[2].Text);
                 BuildVariants(GridView4);
                 Grid2.Visible = true;
                 BeforeB2.Visible = false;
@@ -294,27 +281,25 @@ public partial class Main : System.Web.UI.Page
 
     private void BuildVariants(GridView grv)
     {
-        IEnumerable<VariantsSet> list = model.Variants as IEnumerable<VariantsSet>;
-        List<VarientBind> ls = new List<VarientBind>();
-        foreach (var l in list)
-            foreach (var v in l.VariantSet)
+        VariantsSet list = Model.Variants as VariantsSet;
+        List<VariantBind> ls = new List<VariantBind>();
+            foreach (var v in list.VariantSet)
             {
-                VarientBind vb = new VarientBind();
+                VariantBind vb = new VariantBind();
                 vb.VariantName = v.name;
                 vb.Description = v.Description;
                 ls.Add(vb);
             }
-        BindData<List<VarientBind>>(grv, ls, SesVariants);
+        BindData<List<VariantBind>>(grv, ls, SesVariants);
         Grid4.Visible = true;
     }
 
     private void BuildParameterList(GridView gridView)
     {
-        IEnumerable<ParmSet> list = model.parmSet as IEnumerable<ParmSet>;
+        ParmSet list = Model.parmSet as ParmSet;
         parmBind = new List<ParmBind>();
         List<ParmBind> saved = new List<ParmBind>();
-        foreach (var l in list)
-            foreach (var l1 in l.Parameters.Metadata)
+            foreach (var l1 in list.Parameters.Metadata)
                 foreach (var l2 in l1.Parameter)
                 {
                     var br = new ParmBind();
@@ -392,9 +377,9 @@ public partial class Main : System.Web.UI.Page
         s.Username = GetUserName();
         if (!saved)
         {
-            model.ScheduleReport(s);
-            TextBox2.Text = model.schedulerResponses.FirstOrDefault().Pky;
-            TextBox3.Text = model.schedulerResponses.FirstOrDefault().Message;
+            Model.ScheduleReport(s);
+            TextBox2.Text = Model.schedulerResponses.Pky;
+            TextBox3.Text = Model.schedulerResponses.Message;
         }
         return s;
     }
@@ -537,11 +522,11 @@ public partial class Main : System.Web.UI.Page
         {
             Grid3.Visible = true;
             Button7.Enabled = false;
-            model.ReportRetriever(GetUserName());
+            Model.ReportRetriever(GetUserName());
             reps = new List<BindReportsByUser>();
-            if (model.ReportData != null)
+            if (Model.ReportData != null)
             {
-                foreach (var l1 in model.ReportData.ReportDatum)
+                foreach (var l1 in Model.ReportData.ReportDatum)
                 {
                     var br = new BindReportsByUser();
                     br.UUID = l1.Pky;
@@ -696,20 +681,18 @@ public partial class Main : System.Web.UI.Page
                     row.BackColor = ColorTranslator.FromHtml("#A1DCF2");
                     row.ToolTip = "Retrieving Report";
                     Thread.Sleep(100);
-                    model.ReportRetriever(GridView3.Rows[row.RowIndex].Cells[3].Text, true);
-                    var i = model.RawReport.IndexOf(EDM);
-                    if (i != -1)
+                    Model.ReportRetriever(GridView3.Rows[row.RowIndex].Cells[3].Text, true);
+                    if (Model.ReportDownload is ReportJsonEDM)
                     {
-                        var j = model.RawReport.IndexOf(Content);
-                        string edm = model.RawReport.Substring(i, j - 1) + "]}";
-                        string cnt = "{" + model.RawReport.Substring(j + 1);
-                        WriteTempFile(name + "_EDM.json", edm, Files);
-                        WriteTempFile(name + "_Content.json", cnt, Files);
+                        ReportJsonEDM rje = Model.ReportDownload as ReportJsonEDM;
+                        WriteTempFile(name + "_EDM.json", rje.EDM, Files);
+                        WriteTempFile(name + "_Content.json", rje.CONTENT, Files);
                         DownloadZipFiles(zn, Files);
                     }
-                    else
+                    else if (Model.ReportDownload is ReportJsonNamed)
                     {
-                        WriteTempFile(name + "_Content.json", model.RawReport, Files);
+                        ReportJsonNamed rjn = Model.ReportDownload as ReportJsonNamed;
+                        WriteTempFile(name + "_Content.json", rjn.CONTENT, Files);
                         DownloadZipFiles(zn, Files);
                     }
                 }
@@ -764,10 +747,10 @@ public partial class Main : System.Web.UI.Page
             {
                 row.BackColor = ColorTranslator.FromHtml("#A1DCF2");
                 row.ToolTip = "Variant Selected";
-                model.VariantContents(GridView1.Rows[GridView1.SelectedIndex].Cells[2].Text, GridView4.Rows[row.RowIndex].Cells[1].Text);
+                Model.VariantContents(GridView1.Rows[GridView1.SelectedIndex].Cells[2].Text, GridView4.Rows[row.RowIndex].Cells[1].Text);
                 FilldParameterList(GridView2);
                 Session[VarNameSaved] = GridView4.Rows[row.RowIndex].Cells[1].Text;
-                Session[VarParCnt] = model.VariantValuesSet;
+                Session[VarParCnt] = Model.VariantValuesSet;
                 VariantSave.Visible = false;
                 BeforeB2.Visible = true;
             }
@@ -783,15 +766,14 @@ public partial class Main : System.Web.UI.Page
     {
         List<ParmBind> binds = Session[OriginalParms] as List<ParmBind>;
         BindData(GridView2, binds, OriginalParms);
-        IEnumerable<VariantValuesSet> list = model.VariantValuesSet as IEnumerable<VariantValuesSet>;
+        VariantValuesSet list = Model.VariantValuesSet as VariantValuesSet;
         foreach (var item in binds)
         {
             item.Operation = "EQ";
             item.From = string.Empty;
             item.To = string.Empty;
         }
-        foreach (var l in list)
-            foreach (var l1 in l.Variants)
+            foreach (var l1 in list.Variants)
             {
                 foreach (var v0 in binds)
                 {
@@ -850,7 +832,7 @@ public partial class Main : System.Web.UI.Page
     protected void Button6_Click(object sender, EventArgs e)
     {
         //check if exists ...
-        List<VarientBind> ls = Session[SesVariants] as List<VarientBind>;
+        List<VariantBind> ls = Session[SesVariants] as List<VariantBind>;
         foreach (var v0 in ls)
         {
             if (v0.VariantName == TextBox4.Text.ToUpper() && CheckBox1.Checked == false)
@@ -859,7 +841,7 @@ public partial class Main : System.Web.UI.Page
                 return;
             }
         }
-        model.VariantValuesSet = Session[VarParCnt] as List<VariantValuesSet>;       
+        Model.VariantValuesSet = Session[VarParCnt] as VariantValuesSet;       
         NewVariant nv = new NewVariant();
         nv.Parameters = new List<VariantContent>();
         ParmChanges = Session[ParmsAltered] as List<string>;
@@ -867,10 +849,9 @@ public partial class Main : System.Web.UI.Page
             if (ParmChanges.Contains(g0.Cells[1].Text))
                 if (IsValid(g0.Cells[5].Text) || IsValid(g0.Cells[6].Text))
                 {
-                    if (model.VariantValuesSet != null)
-                        foreach (var v0 in model.VariantValuesSet)
+                    if (Model.VariantValuesSet != null)
                         {
-                            foreach (var v1 in v0.Variants)
+                            foreach (var v1 in Model.VariantValuesSet.Variants)
                             {
                                 if (v1.Variant.Selname == g0.Cells[1].Text && v1.Variant.Sign == "*")
                                 {
@@ -896,7 +877,7 @@ public partial class Main : System.Web.UI.Page
         nv.Description = TextBox5.Text;
         if (CheckBox1.Checked)
             nv.Save = "X";
-        model.SaveVariant(nv);
+        Model.SaveVariant(nv);
         SetMessage("Variant Saved ...");
     }
 
@@ -976,6 +957,7 @@ public partial class Main : System.Web.UI.Page
                 Hours.Visible = true;
                 LbHou.Text = "Schedule Specifc Date and Time Slot";
                 RadioButtonList2.Visible = true;
+                ThisDate = Calendar1.SelectedDate;
                 txtNickName.Text = (Session[ReportName] as string) + nm + "on " + ThisDate.ToShortDateString(); 
             }
             else
@@ -1049,12 +1031,11 @@ public partial class Main : System.Web.UI.Page
             Button4.Enabled = false;
             Grid3.Visible = true;
             GridView3.Caption = "Schedule for User";
-            dynamic agenda = model.UserAgenda(GetUserName());
+            AgendaQuery agenda = Model.UserAgenda(GetUserName());
             List<AgendaBind> reps = new List<AgendaBind>();
             if (agenda != null)
-            {
-                foreach (var l in agenda)
-                    foreach (var l1 in l.AGENDA)
+            {              
+                    foreach (var l1 in agenda.AGENDA)
                     {
                         var ab = new AgendaBind();
                         ab.NickName = l1.NICKNAME;
@@ -1166,7 +1147,7 @@ public partial class Main : System.Web.UI.Page
                 a.Parameters = new List<Parameter>();
                 a.PKY = ab.UUID;
 
-                List<AgendaResult> agenda = model.UserSetAgenda(a);
+                AgendaResult agenda = Model.UserSetAgenda(a);
                 SetMessage("Schedule " + a.NICKNAME + " changed successfully");
             }
         }
@@ -1192,9 +1173,7 @@ public partial class Main : System.Web.UI.Page
             a.Parameters = new List<Parameter>();
             foreach (var item in s.Parameters)
                 a.Parameters.Add(item);
-            //Resource<Agenda, AgendaResult> query = new Resource<Agenda, AgendaResult>(new Uri(ConfigurationManager.AppSettings["URL"]));
-            //query.Authenticate(GetUserName(), Encoding.ASCII.GetBytes(GetPassword()));
-            List<AgendaResult> agenda = model.UserSetAgenda(a);
+            AgendaResult agenda = Model.UserSetAgenda(a);
             SetMessage("Schedule " + a.NICKNAME + " created successfully");
         }
     }
@@ -1283,9 +1262,7 @@ public partial class Main : System.Web.UI.Page
                 CheckBox2.Visible = false;
                 CheckBox2.Checked = false;
                 Button9.Visible = false;
-                //Resource<Agenda, AgendaResult> query = new Resource<Agenda, AgendaResult>(new Uri(ConfigurationManager.AppSettings["URL"]));
-                //query.Authenticate(GetUserName(), Encoding.ASCII.GetBytes(GetPassword()));
-                List<AgendaResult> agenda = model.UserSetAgenda(a);
+                AgendaResult agenda = Model.UserSetAgenda(a);
                 SetMessage("Schedule deleted");
                 Grid3.Visible = false;
                 BeforeB2.Visible = false;
@@ -1322,7 +1299,24 @@ public partial class Main : System.Web.UI.Page
     protected void Calendar1_SelectionChanged(object sender, EventArgs e)
     {
         string nm = " for " + ToCamelCase(GetUserName()) + " ";
-        this.ThisDate = Calendar1.SelectedDate.Date;
+        this.ThisDate = Calendar1.SelectedDate.Date;  
+        Session[thisdate] = this.ThisDate;
         txtNickName.Text = (Session[ReportName] as string) + nm + "on " + ThisDate.ToShortDateString();
+        Session[SavedNick] = txtNickName.Text;
+        if (!String.IsNullOrEmpty(TextBox7.Text))
+            txtNickName.Text = txtNickName.Text + " at " + TextBox7.Text + " Hours";
+    }
+
+
+
+    protected void txtNickName_TextChanged(object sender, EventArgs e)
+    {
+
+    }
+
+    protected void Calendar1_DayRender(object sender, DayRenderEventArgs e)
+    {
+        if (e.Day.Date.CompareTo(DateTime.Today) <= 0)
+            e.Day.IsSelectable = false;
     }
 }

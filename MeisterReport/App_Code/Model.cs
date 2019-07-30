@@ -1,7 +1,9 @@
 ﻿using MeisterCore;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Net.Http.Headers;
 using System.Text;
 using static MeisterCore.Support.MeisterSupport;
@@ -14,40 +16,42 @@ public class Model
     public enum Calls
     {
         unknown,
-        GetTcodesOrProgramsByHint,
+        Finder,
         GetParameters,
         Scheduler,
         Retriever,
         Variants,
-        NewVariant
+        NewVariant,
+        Agenda,
+        AgendaAdd
     }
     Dictionary<Calls, string> Dict { get; set; }
     Dictionary<string, string> Payload { get; set; }
-    public List<ResultSet> ResultSet { get; set; }
-    public List<ParmSet> parmSet { get; set; }
-    public List<SchedulerResponse> schedulerResponses { get; set; }
+    public ResultSet ResultSet { get; set; }
+    public ParmSet parmSet { get; set; }
+    public SchedulerResponse schedulerResponses { get; set; }
     public ReportData ReportData { get; set; }
     public TimeSpan TimeSpan { get; private set; }
-    public string RawReport { get; set; }
-    public List<VariantsSet> Variants { get; set; }
-    public List<Messages> Messages { get; set; }
-    public List<VariantValuesSet> VariantValuesSet { get; set; }
-    public Uri od2 = new Uri("Http://MeisterAzure.Dyndns.org:8001");
+    public dynamic ReportDownload { get; set; }
+    public VariantsSet Variants { get; set; }
+    public Messages Messages { get; set; }
+    public VariantValuesSet VariantValuesSet { get; set; }
 
-
-    private Controller Controller;
+    public Controller Controller { get; private set; }
 
     public Model()
     {
-        this.Controller = new Controller();
         Dict = new Dictionary<Calls, string>();
+        Controller = new Controller();
         Dict.Add(Calls.unknown, @"");
-        Dict.Add(Calls.GetTcodesOrProgramsByHint, @"Meister.SDK.Report.Finder");
+        Dict.Add(Calls.Finder, @"Meister.SDK.Report.Finder");
         Dict.Add(Calls.GetParameters, @"Meister.SDK.Report.Parameters");
         Dict.Add(Calls.Scheduler, @"Meister.SDK.Report.Scheduler");
         Dict.Add(Calls.Retriever, @"Meister.SDK.Report.Retrieval");
         Dict.Add(Calls.Variants, @"Meister.SDK.Report.Read.Variant");
         Dict.Add(Calls.NewVariant, @"Meister.SDK.Report.Create.Variant");
+        Dict.Add(Calls.Agenda, @"Meister.SDK.Report.Agenda");
+        Dict.Add(Calls.AgendaAdd, @"Meister.SDK.Report.Agenda.Add");
         Payload = new Dictionary<string, string>();
     }
     
@@ -65,12 +69,7 @@ public class Model
     {
         Dictionary<string, string> jsoncall = new Dictionary<string, string>();
         jsoncall.Add("HINT", hint);
-        string s = Controller.FromList<Dictionary<string, string>>(jsoncall);
-        EndPoint endPoint = GetEndPoint(Calls.GetTcodesOrProgramsByHint);
-        var sw = Stopwatch.StartNew();
-        ResultSet = Controller.ToList<ResultSet>(Controller.ExecuteCall(endPoint, s, false));
-        sw.Stop();
-        TimeSpan = sw.Elapsed;
+        ResultSet = Controller.RetrieveEntity<ResultSet>(Dict[Calls.Finder], jsoncall);
     }
 
     public void Parameters(string rep)
@@ -78,22 +77,12 @@ public class Model
         Dictionary<string, string> jsoncall = new Dictionary<string, string>();
         jsoncall.Add("REP_TCODE", rep);
         jsoncall.Add("rep_tcode_type", "T");
-        string s = Controller.FromList<Dictionary<string, string>>(jsoncall);
-        EndPoint endPoint = GetEndPoint(Calls.GetParameters);
-        var sw = Stopwatch.StartNew();
-        parmSet = Controller.ToList<ParmSet>(Controller.ExecuteCall(endPoint, s, false));
-        sw.Stop();
-        TimeSpan = sw.Elapsed;
+        parmSet = Controller.RetrieveEntity<ParmSet>(Dict[Calls.GetParameters], jsoncall);
     }
 
     public void ScheduleReport(Scheduler s)
     {
-        string st = Serialize.ToJson<Scheduler>(s);
-        EndPoint endPoint = GetEndPoint(Calls.Scheduler);
-        var sw = Stopwatch.StartNew();
-        schedulerResponses = Controller.ToList<SchedulerResponse>(Controller.ExecuteCall(endPoint, st, false));
-        sw.Stop();
-        TimeSpan = sw.Elapsed;
+        schedulerResponses = Controller.RetrieveEntity<SchedulerResponse>(Dict[Calls.Scheduler], s);
     }
 
     public void ReportRetriever(string s, bool hit = false, bool metadata = false)
@@ -108,46 +97,43 @@ public class Model
     {
         SchedulerSet sc = new SchedulerSet();
         sc.ReportGuid = guid;
-        string st = Serialize.ToJson<SchedulerSet>(sc);
-        EndPoint endPoint = GetEndPoint(Calls.Retriever);
-        endPoint.Parm.Compression = "";
-        var sw = Stopwatch.StartNew();
-        RawReport = Controller.ToString(Controller.ExecuteCall(endPoint, st, false));
-        sw.Stop();
-        TimeSpan = sw.Elapsed;
+        dynamic d = Controller.RetriveAsDynamic(Dict[Calls.Retriever],sc);
+        JObject jo = null;
+        // Special case under OData 4 - the dynamic is a list 
+        if (Controller.IsOD4)
+        {
+            IEnumerable<dynamic> ie = d as IEnumerable<dynamic>;
+            foreach (var item in ie)
+            {
+                jo = (JObject)item; 
+            }
+            
+        }
+        else
+            jo = d;
+        if (jo.Count == 1)
+        {
+            ReportJsonNamed rjn = new ReportJsonNamed();
+            rjn.CONTENT = jo.First.ToString();
+            ReportDownload = rjn;
+        }
+        else if(jo.Count == 2)
+        {
+            ReportJsonEDM rjd = new ReportJsonEDM();
+            rjd.EDM = jo.First.ToString();
+            rjd.CONTENT = jo.Last.ToString();
+            ReportDownload = rjd;
+        }
     }
 
     public void MyReports(string user)
     {
-        var byteArray = Encoding.ASCII.GetBytes("DEMOUSER:DemoUser.");
         SchedulerSet sc = new SchedulerSet();
         sc.UserId = user;
-        AuthenticationHeaderValue headerValue = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(byteArray));
-        Resource<SchedulerSet, ReportDatum> resource = new Resource<SchedulerSet, ReportDatum>(od2, headerValue,
-                                        MeisterExtensions.RemoveNullsAndEmptyArrays,
-                                        MeisterOptions.None,
-                                        AuthenticationModes.Basic,
-                                        RuntimeOptions.ExecuteSync);
         ReportData = new ReportData();
-        try
-        {
-            if (resource.Authenticate())
-            {
-                var response = resource.Execute("Meister.SDK.Report.Retrieval", sc);
-                ReportData.ReportDatum = new List<ReportDatum>();
-                ReportData.ReportDatum.AddRange(response);
-            }
-            else
-            {
-                var response = resource.Execute("Meister.SDK.Report.Retrieval", sc);
-                ReportData.ReportDatum = new List<ReportDatum>();
-                ReportData.ReportDatum.AddRange(response);
-            }
-        }
-        catch (Exception ex)
-        {
-           
-        }
+        ReportData.ReportDatum = new List<ReportDatum>();
+        ReportDatum rd = Controller.RetrieveEntity<ReportDatum>(Dict[Calls.Retriever], sc);
+        ReportData.ReportDatum.Add(rd);
     }
 
     public void VariantContents(string program, string variant)
@@ -155,92 +141,28 @@ public class Model
         VariantQuery vq = new VariantQuery();
         vq.ReportName = program;
         vq.VariantName = variant;
-        string st = Serialize.ToJson<VariantQuery>(vq);
-        EndPoint endPoint = GetEndPoint(Calls.Variants);
-        endPoint.Parm.Compression = "";
-        var sw = Stopwatch.StartNew();
-        VariantValuesSet = Controller.ToList<VariantValuesSet>(Controller.ExecuteCall(endPoint, st, false));
-        sw.Stop();
-        TimeSpan = sw.Elapsed;
+        VariantValuesSet = Controller.RetrieveEntity<VariantValuesSet>(Dict[Calls.Variants], vq);
     }
     public void FindVariants(string program)
     {
         VariantQuery vq = new VariantQuery();
         vq.ReportName = program;
-        string st = Serialize.ToJson<VariantQuery>(vq);
-        EndPoint endPoint = GetEndPoint(Calls.Variants);
-        endPoint.Parm.Compression = "";
-        var sw = Stopwatch.StartNew();
-        Variants = Controller.ToList<VariantsSet>(Controller.ExecuteCall(endPoint, st, false));
-        sw.Stop();
-        TimeSpan = sw.Elapsed;
+        Variants = Controller.RetrieveEntity<VariantsSet>(Dict[Calls.Variants], vq);
     }
 
     public void SaveVariant(NewVariant nv)
     {
-        string st = Serialize.ToJson<NewVariant>(nv);
-        EndPoint endPoint = GetEndPoint(Calls.NewVariant);
-        endPoint.Parm.Compression = "";
-        var sw = Stopwatch.StartNew();
-        Messages = Controller.ToList<Messages>(Controller.ExecuteCall(endPoint, st, false));
-        sw.Stop();
-        TimeSpan = sw.Elapsed;
+          Messages = Controller.RetrieveEntity<Messages>(Dict[Calls.NewVariant], nv);
     }
 
-    public dynamic UserAgenda(string us)
+    public AgendaQuery UserAgenda(string us)
     {
         User u = new User();
-        u.USERID = us;
-        var byteArray = Encoding.ASCII.GetBytes("DEMOUSER:DemoUser.");
-        AuthenticationHeaderValue headerValue = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(byteArray));
-        Resource<User, AgendaQuery> resource = new Resource<User, AgendaQuery>(od2, headerValue,
-                                        MeisterExtensions.RemoveNullsAndEmptyArrays,
-                                        MeisterOptions.None,
-                                        AuthenticationModes.Basic,
-                                        RuntimeOptions.ExecuteSync);
-        dynamic response = null;
-        try
-        {
-            if (resource.Authenticate())
-            {
-                response = resource.Execute("Meister.SDK.Report.Agenda", u);
-            }
-            else
-            {
-
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine(ex.Message);
-        }
-        return response;
+        u.USERID = us;      
+        return Controller.RetrieveEntity<AgendaQuery>(Dict[Calls.Agenda], u);
     }
-    public dynamic UserSetAgenda(Agenda a)
+    public AgendaResult UserSetAgenda(Agenda a)
     {
-        var byteArray = Encoding.ASCII.GetBytes("DEMOUSER:DemoUser.");
-        AuthenticationHeaderValue headerValue = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(byteArray));
-        Resource<Agenda, AgendaResult> resource = new Resource<Agenda, AgendaResult>(od2, headerValue,
-                                        MeisterExtensions.RemoveNullsAndEmptyArrays,
-                                        MeisterOptions.None,
-                                        AuthenticationModes.Basic,
-                                        RuntimeOptions.ExecuteSync);
-        dynamic response = null;
-        try
-        {
-            if (resource.Authenticate())
-            {
-                response = resource.Execute("Meister.SDK.Report.Agenda.Add", a);
-            }
-            else
-            {
-
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine(ex.Message);
-        }
-        return response;
+        return Controller.RetrieveEntity<AgendaResult>(Dict[Calls.AgendaAdd], a);
     }
 }

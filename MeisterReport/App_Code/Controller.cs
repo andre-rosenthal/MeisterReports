@@ -14,6 +14,9 @@ using System.Security;
 using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using static MeisterCore.Support.MeisterSupport;
+using MeisterCore;
+using Newtonsoft.Json.Linq;
 
 /// <summary>
 /// Summary description for Controller
@@ -21,11 +24,13 @@ using Newtonsoft.Json;
 public class Controller
 {
     private const char quote = '"';
+    public bool IsOD4 { get; set; }
     public Controller()
     {
         
     }
     protected readonly string _endpoint;
+    protected Resource<dynamic, dynamic> resource;
     public EndPoint endPoint { get; set; }
     public TimeSpan TimeSpan { get; set; }
 
@@ -35,6 +40,38 @@ public class Controller
     {
         return quote.ToString();
     }
+    public bool Authenticate(string userid, string psw, Uri gatewayUri, string sapclient, bool od4)
+    {
+        string bae = userid + ":" + psw;
+        var byteArray = Encoding.ASCII.GetBytes(bae);
+        AuthenticationHeaderValue headerValue = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(byteArray));
+        MeisterExtensions me = MeisterExtensions.RemoveNullsAndEmptyArrays;
+        MeisterOptions mo = MeisterOptions.None;
+        if (od4)
+            mo = MeisterOptions.UseODataV4;
+        RuntimeOptions ro = RuntimeOptions.ExecuteSync;
+        AuthenticationModes am = AuthenticationModes.Basic;
+        resource = new Resource<dynamic, dynamic>(gatewayUri, headerValue, sapclient, me, mo, am, ro);
+        return resource.Authenticate();
+    }
+    public dynamic RetriveAsDynamic(string ep, dynamic d)
+    {
+        return resource.Execute(ep, d);       
+    }
+    public T RetrieveEntity<T>(string ep, dynamic d)
+    {
+        dynamic dyn = resource.Execute(ep, d);
+        if (dyn != null)
+            return ToEntity<T>(dyn);
+        else
+            return default(T);
+    }
+
+    private T ToEntity<T>(dynamic d)
+    {
+        return JsonConvert.DeserializeObject<T>(JsonConvert.SerializeObject(d[0]));
+    }
+
     public dynamic ExecuteCall(EndPoint ep, string json, bool wait = true)
     {
         endPoint = ep;
@@ -123,16 +160,22 @@ public class Controller
         {
             return string.Empty;
         }
+        string s = d;
+        return s;
+        //dynamic j = d["d"].results[0];
+        //string json = j["Json"];
+        //if (endPoint.Parm.Compression == "O")
+        //{
+        //    json = Unzip(json);
+        //}
+        //if (json.Contains(@"\"""))
+        //    json = json.Replace(@"\""", Quote());
+        //return json;
+    }
 
-        dynamic j = d["d"].results[0];
-        string json = j["Json"];
-        if (endPoint.Parm.Compression == "O")
-        {
-            json = Unzip(json);
-        }
-        if (json.Contains(@"\"""))
-            json = json.Replace(@"\""", Quote());
-        return json;
+    public void CleanUp()
+    {
+        resource = null;
     }
 
     public List<T> FromString<T>(string s)
@@ -163,22 +206,23 @@ public class Controller
     /// <typeparam name="T"></typeparam>
     /// <param name="d"></param>
     /// <returns></returns>
-    public List<T> ToList<T>(dynamic d)
+    public List<T> ToList<T>(dynamic d) where T : IEnumerable<T>
     {
-        string json = ToString(d);
-        List<T> list = new List<T>();
-        if (json != string.Empty)
-        {
-            try
-            {
-                list = JsonConvert.DeserializeObject<List<T>>(json);
-            }
-            catch (Exception ex)
-            {
+        //string json = ToString(d);
+        //List<T> list = new List<T>();
+        //if (json != string.Empty)
+        //{
+        //    try
+        //    {
+        //        list = JsonConvert.DeserializeObject<List<T>>(json);
+        //    }
+        //    catch (Exception ex)
+        //    {
 
-            }
-        }
-        return list;
+        //    }
+        //}
+        //return list;
+        return null;
     }
 
     public static void CopyTo(Stream src, Stream dest)
